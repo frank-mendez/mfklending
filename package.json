@@ -1,0 +1,31 @@
+{
+  "name": "mfklending",
+  "version": "1.0.0",
+  "description": "MFK Lending Corp — internal loan management system for a Filipino co-op lending business. Tracks stash contributions, manages flat-interest and diminishing-balance loans, automates borrower reminders, and generates e-signed contracts. Built with Next.js 15, Supabase, and Tailwind CSS.",
+  "keywords": [
+    "nextjs",
+    "supabase",
+    "tailwindcss",
+    "shadcn-ui",
+    "lending",
+    "fintech",
+    "philippines",
+    "typescript",
+    "vercel"
+  ],
+  "homepage": "https://github.com/frank-mendez/mfklending#readme",
+  "bugs": {
+    "url": "https://github.com/frank-mendez/mfklending/issues"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/frank-mendez/mfklending.git"
+  },
+  "license": "ISC",
+  "author": "Frank Mendez",
+  "type": "commonjs",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  }
+}
