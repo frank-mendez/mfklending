@@ -1,26 +1,41 @@
-import { differenceInDays, format, parseISO } from 'date-fns'
+import { differenceInDays, format } from 'date-fns'
 import { fromZonedTime, toZonedTime } from 'date-fns-tz'
 
 const MANILA_TZ = 'Asia/Manila'
 
 /**
+ * Parses a string as a UTC instant.
+ *
+ * parseISO() treats timezone-less strings (e.g. "2024-01-15T10:00:00") as
+ * local time, which breaks when the runtime is not in UTC. Using
+ * fromZonedTime(str, 'UTC') instead explicitly declares the string as UTC
+ * regardless of the host timezone.
+ *
+ * Strings that already carry an offset (Z / +HH:mm) are handled correctly by
+ * both approaches, so this is safe for Supabase timestamptz values too.
+ */
+function parseUTC(date: string): Date {
+  return fromZonedTime(date, 'UTC')
+}
+
+/**
  * Formats a UTC date string or Date object for display in Manila time.
- * @param date - UTC date string or Date object
+ * @param date - UTC instant: a Date object, an ISO string with timezone info
+ *               (e.g. "2024-01-15T10:00:00Z"), or a naive string that will be
+ *               treated as UTC (e.g. "2024-01-15" or "2024-01-15T10:00:00")
  * @param fmt - date-fns format string (e.g. 'MMM d, yyyy')
- * @returns Formatted date string in Manila timezone
+ * @returns Formatted date string in Asia/Manila timezone
  */
 export function formatManila(date: string | Date, fmt: string): string {
-  const d = typeof date === 'string' ? parseISO(date) : date
-  const manilaDate = toZonedTime(d, MANILA_TZ)
-  return format(manilaDate, fmt)
+  const utc = typeof date === 'string' ? parseUTC(date) : date
+  return format(toZonedTime(utc, MANILA_TZ), fmt)
 }
 
 /**
  * Returns today's date in Manila timezone as a YYYY-MM-DD string.
  */
 export function todayManila(): string {
-  const nowInManila = toZonedTime(new Date(), MANILA_TZ)
-  return format(nowInManila, 'yyyy-MM-dd')
+  return format(toZonedTime(new Date(), MANILA_TZ), 'yyyy-MM-dd')
 }
 
 /**
@@ -29,8 +44,7 @@ export function todayManila(): string {
  * @returns true if the due date is strictly before today in Manila time
  */
 export function isOverdue(dueDate: string): boolean {
-  const today = todayManila()
-  return dueDate < today
+  return dueDate < todayManila()
 }
 
 /**
