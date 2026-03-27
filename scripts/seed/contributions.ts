@@ -179,7 +179,7 @@ export async function seedContributions(partnerIds: Record<string, string>): Pro
 
     const total = (data ?? []).reduce((sum: number, row: { amount: number }) => sum + row.amount, 0)
 
-    const expected = EXPECTED_TOTALS[name] ?? 11100000
+    const expected = EXPECTED_TOTALS[partner] ?? 11100000
     if (total !== expected) {
       console.error(`✗ ERROR: ${name} total = ${total}, expected ${expected}`)
     } else {
