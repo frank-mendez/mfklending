@@ -10,6 +10,11 @@ Required files:
 
 The stash and dividend data is hardcoded in the seed scripts and does not need a CSV.
 
+## Resetting the database
+
+`npm run seed:reset` requires `SEED_RESET_ALLOWED=true` in `.env.local` to run.
+This prevents accidental wipes when NODE_ENV is not set. Never set this in production.
+
 Export instructions:
 1. Open the MFK Google Sheet
 2. Click the tab you want to export

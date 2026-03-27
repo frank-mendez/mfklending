@@ -7,6 +7,15 @@ if (process.env.NODE_ENV === 'production') {
   throw new Error('Cannot reset in production')
 }
 
+// Guard: Require explicit opt-in regardless of NODE_ENV.
+// NODE_ENV is often unset locally, so this prevents accidental wipes of any
+// Supabase project (including prod) when the env var isn't configured.
+if (process.env.SEED_RESET_ALLOWED !== 'true') {
+  throw new Error(
+    'Database reset is disabled. Set SEED_RESET_ALLOWED=true in .env.local to allow this operation.'
+  )
+}
+
 const rl = readline.createInterface({
   input: process.stdin,
   output: process.stdout,
