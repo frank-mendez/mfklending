@@ -129,13 +129,12 @@ export async function seedContributions(partnerIds: Record<string, string>): Pro
   const frankCatchUpRemarks = 'FRANK PAID ₱8,000.00 (FROM MISSED PAYMENTS)'
   const frankCatchUpAmount = parsePHP('₱8,000.00')
 
-  // Idempotency: check by (partner_id, month, remarks) to avoid duplicate catch-up
+  // Idempotency: check by (partner_id, month) to align with DB UNIQUE constraint
   const { data: existingCatchUp, error: catchUpCheckError } = await supabase
     .from('contributions')
     .select('id')
     .eq('partner_id', frankId)
     .eq('month', aug23ISO)
-    .eq('remarks', frankCatchUpRemarks)
     .maybeSingle()
 
   if (catchUpCheckError) {
