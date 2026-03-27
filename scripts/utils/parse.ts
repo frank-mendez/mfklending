@@ -2,17 +2,19 @@ import { readFileSync } from 'node:fs'
 import { parse as parseCSVLib } from 'csv-parse/sync'
 
 /**
- * Parse Philippine Peso string to integer centavos
+ * Parse Philippine Peso string to integer centavos.
+ * Returns 0 for empty/null/undefined (legitimate "no payment" cases).
+ * Throws for non-empty strings that fail to parse — bad data should never
+ * silently seed as 0 and corrupt the database.
  * @param value - PHP string like "₱3,000.00" or "₱111,000.00"
- * @returns integer centavos (e.g., 300000 for ₱3,000.00), or 0 if unparseable
+ * @returns integer centavos (e.g., 300000 for ₱3,000.00), or 0 for empty input
  */
 export function parsePHP(value: string): number {
-  // Handle empty, null, undefined
+  // Empty / null / undefined = legitimate "no payment this month"
   if (!value || typeof value !== 'string') {
     return 0
   }
 
-  // Strip whitespace
   const trimmed = value.trim()
   if (trimmed === '') {
     return 0
@@ -21,15 +23,14 @@ export function parsePHP(value: string): number {
   // Remove ₱ symbol and commas
   const cleaned = trimmed.replace(/₱/g, '').replace(/,/g, '')
 
-  // Parse as float
   const num = parseFloat(cleaned)
 
-  // Return 0 if NaN
   if (Number.isNaN(num)) {
-    return 0
+    throw new Error(
+      `parsePHP: cannot parse "${value}" as a currency value. Expected format: "₱3,000.00"`
+    )
   }
 
-  // Convert to centavos and round
   return Math.round(num * 100)
 }
 
