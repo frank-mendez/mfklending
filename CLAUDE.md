@@ -396,3 +396,56 @@ MFK collection account is static:
 - **Loan status colors** (from spreadsheet): gray = paid, colored = active. Replicate with status badges in UI.
 - **Penalty calculation**: 1% per day applies to the *accrued interest amount* (not the principal).
 - **Stash irregularities**: Some months have lump-sum catch-up payments — the `remarks` field must be preserved.
+
+---
+
+## GitHub Branch Protection
+
+Configure these rules in GitHub → Settings → Branches for both `main` and `develop`:
+
+### Branch: main (production)
+- Require a pull request before merging
+- Require all status checks to pass:
+  - Type Check
+  - Lint & Format
+  - Unit Tests & Coverage
+  - Next.js Build
+- Require branches to be up to date before merging
+- Require at least 1 approval
+- Do not allow bypassing the above settings
+
+### Branch: develop (staging)
+- Require a pull request before merging
+- Require all status checks to pass (same four checks)
+- No approval required (faster iteration)
+
+### Branch naming convention
+- Phase work:    phase/1-migration, phase/2-finance, phase/3-ui
+- Features:      feat/loan-form, feat/payment-reminders
+- Bug fixes:     fix/penalty-calculation, fix/overdue-detection
+- Hotfixes:      hotfix/contract-webhook
+- Cleanup:       chore/update-deps, chore/seed-reset
+
+---
+
+## GitHub Secrets
+
+Add these in GitHub → Settings → Secrets and variables → Actions:
+
+### Required for CI (pr.yml and deploy.yml)
+| Secret | Description |
+|---|---|
+| NEXT_PUBLIC_SUPABASE_URL | Supabase project URL — safe to expose, needed for build |
+| NEXT_PUBLIC_SUPABASE_ANON_KEY | Supabase anon key — safe to expose, needed for build |
+
+### Never add to GitHub Secrets for CI use
+| Variable | Reason |
+|---|---|
+| SUPABASE_SERVICE_ROLE_KEY | Bypasses RLS — only use locally in seed scripts |
+| SIGNWELL_API_KEY | Not needed at build time |
+| RESEND_API_KEY | Not needed at build time |
+| SEMAPHORE_API_KEY | Not needed at build time |
+| CRON_SECRET | Vercel handles this, not GitHub Actions |
+
+Vercel environment variables are managed separately in the Vercel dashboard
+and are injected at runtime — they do not go through GitHub Secrets.

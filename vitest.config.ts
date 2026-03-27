@@ -10,8 +10,16 @@ export default defineConfig({
     globals: true,
     passWithNoTests: true,
     coverage: {
-      reporter: ['text', 'json', 'html'],
-      include: ['src/lib/finance/**'],
+      provider: 'v8',
+      reporter: ['text', 'json', 'html', 'lcov'],
+      include: ['src/lib/finance/**', 'src/lib/utils/**'],
+      exclude: ['src/lib/utils/supabase*', 'node_modules', '.next'],
+      thresholds: {
+        lines: 90,
+        functions: 90,
+        branches: 85,
+        statements: 90,
+      },
     },
   },
   resolve: {
