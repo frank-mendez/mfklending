@@ -13,11 +13,15 @@ export async function seedPartners(): Promise<Record<string, string>> {
 
   for (const partner of PARTNERS) {
     // Check if partner already exists by email
-    const { data: existing } = await supabase
+    const { data: existing, error: existingError } = await supabase
       .from('partners')
       .select('id, name')
       .eq('email', partner.email)
-      .single()
+      .maybeSingle()
+
+    if (existingError) {
+      throw new Error(`Failed to check existing partner ${partner.email}: ${existingError.message}`)
+    }
 
     if (existing) {
       console.log(`↷ Partner ${existing.name} already exists, skipping`)

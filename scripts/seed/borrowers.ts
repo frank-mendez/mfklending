@@ -20,11 +20,17 @@ export async function seedBorrowers(): Promise<Record<string, string>> {
   const borrowerMap: Record<string, string> = {}
 
   // Step 1: Pre-seed known borrower
-  const { data: existingKnown } = await supabase
+  const { data: existingKnown, error: existingKnownError } = await supabase
     .from('borrowers')
     .select('id, full_name')
     .eq('email', KNOWN_BORROWER.email)
-    .single()
+    .maybeSingle()
+
+  if (existingKnownError) {
+    throw new Error(
+      `Failed to query known borrower ${KNOWN_BORROWER.full_name}: ${existingKnownError.message}`
+    )
+  }
 
   if (existingKnown) {
     console.log(`↷ Borrower ${existingKnown.full_name} already exists, skipping`)
@@ -65,11 +71,15 @@ export async function seedBorrowers(): Promise<Record<string, string>> {
 
     // Insert each unique borrower (idempotent by email)
     for (const [email, row] of borrowersByEmail) {
-      const { data: existing } = await supabase
+      const { data: existing, error: existingError } = await supabase
         .from('borrowers')
         .select('id, full_name')
         .eq('email', email)
-        .single()
+        .maybeSingle()
+
+      if (existingError) {
+        throw new Error(`Failed to check existing borrower ${email}: ${existingError.message}`)
+      }
 
       if (existing) {
         console.log(`↷ Borrower ${existing.full_name} already exists, skipping`)
