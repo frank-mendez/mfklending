@@ -39,6 +39,15 @@ export function todayManila(): string {
 }
 
 /**
+ * Returns the current month in Manila timezone as a YYYY-MM string.
+ * Use this instead of new Date().toISOString().slice(0, 7), which is UTC-based
+ * and can show the wrong month around midnight on month boundaries.
+ */
+export function currentMonthManila(): string {
+  return format(toZonedTime(new Date(), MANILA_TZ), 'yyyy-MM')
+}
+
+/**
  * Checks if a due date (YYYY-MM-DD) is overdue relative to Manila today.
  * @param dueDate - Due date as YYYY-MM-DD string
  * @returns true if the due date is strictly before today in Manila time

@@ -19,15 +19,10 @@ import {
 import { useContributions, useDividends, usePartners, useStashSummary } from '@/hooks/use-stash'
 import type { ContributionsByMonth, DividendsByDate, StashSummary } from '@/lib/data/stash'
 import { formatPHP } from '@/lib/utils/currency'
-import { formatManila } from '@/lib/utils/date'
+import { currentMonthManila, formatManila } from '@/lib/utils/date'
 import type { Partner } from '@/types'
 
 const PARTNERS = ['Frank', 'Francis', 'Kim'] as const
-
-// Returns YYYY-MM for current month in Manila time
-function currentYearMonth(): string {
-  return new Date().toISOString().slice(0, 7)
-}
 
 interface StashClientProps {
   initialContributions: ContributionsByMonth[]
@@ -50,7 +45,7 @@ export function StashClient({
   const { data: summary = initialSummary } = useStashSummary()
   const { data: partners = initialPartners } = usePartners()
 
-  const thisMonth = currentYearMonth()
+  const thisMonth = currentMonthManila()
 
   // Build a quick lookup: partnerName -> this month's contribution
   const thisMonthMap = new Map<string, number>()
