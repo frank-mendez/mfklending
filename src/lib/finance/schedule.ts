@@ -87,6 +87,10 @@ export function generateSchedule(params: GenerateScheduleParams): LoanScheduleEn
  * // → { totalPrincipal: 3000000, totalInterest: 450000, totalRepayment: 3450000, numberOfPeriods: 3, ... }
  */
 export function summarizeSchedule(schedule: LoanScheduleEntry[]): ScheduleSummary {
+  if (schedule.length === 0) {
+    throw new Error('summarizeSchedule: schedule must contain at least one period')
+  }
+
   const totalPrincipal = schedule.reduce((sum, e) => sum + e.principalDue, 0)
   const totalInterest = schedule.reduce((sum, e) => sum + e.interestDue, 0)
 
@@ -122,13 +126,13 @@ export function getOverdueEntries(
   asOfDate: string
 ): OverdueEntry[] {
   return schedule
-    .filter((entry, index) => {
+    .map((entry, index) => {
+      const daysLate = calcDaysOverdue(entry.dueDate, asOfDate)
       const isPaid = index < payments.length
-      const daysLate = calcDaysOverdue(entry.dueDate, asOfDate)
-      return daysLate > 0 && !isPaid
+      return { entry, daysLate, isPaid }
     })
-    .map((entry) => {
-      const daysLate = calcDaysOverdue(entry.dueDate, asOfDate)
+    .filter(({ daysLate, isPaid }) => daysLate > 0 && !isPaid)
+    .map(({ entry, daysLate }) => {
       const penaltyAmount = calcLatePenalty({ daysLate, monthlyInterest: entry.interestDue })
       return { ...entry, daysLate, penaltyAmount }
     })

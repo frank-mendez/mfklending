@@ -79,6 +79,10 @@ describe('generateSchedule', () => {
 })
 
 describe('summarizeSchedule', () => {
+  it('throws on empty schedule', () => {
+    expect(() => summarizeSchedule([])).toThrow()
+  })
+
   it('totalPrincipal equals original principal (flat)', () => {
     const summary = summarizeSchedule(generateSchedule(flatParams))
     expect(summary.totalPrincipal).toBe(3000000)
