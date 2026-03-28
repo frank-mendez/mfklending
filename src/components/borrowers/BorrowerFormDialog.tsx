@@ -1,7 +1,7 @@
 'use client'
 
 import { useQueryClient } from '@tanstack/react-query'
-import { useActionState, useEffect, useRef, useState } from 'react'
+import { useActionState, useEffect, useState } from 'react'
 import { Button } from '@/components/ui/button'
 import {
   Dialog,
@@ -37,7 +37,7 @@ export function BorrowerFormDialog() {
   const [open, setOpen] = useState(false)
   const queryClient = useQueryClient()
   const [state, formAction, isPending] = useActionState(createBorrower, initialState)
-  const bankSelectRef = useRef<string>('')
+  const [bankName, setBankName] = useState('')
 
   useEffect(() => {
     if (state.success) {
@@ -99,13 +99,8 @@ export function BorrowerFormDialog() {
           {/* Bank Name */}
           <div className="flex flex-col gap-1.5">
             <Label htmlFor="bank_name">Bank</Label>
-            <input type="hidden" name="bank_name" value={bankSelectRef.current} />
-            <Select
-              name="bank_name"
-              onValueChange={(val) => {
-                bankSelectRef.current = val
-              }}
-            >
+            <input type="hidden" name="bank_name" value={bankName} />
+            <Select onValueChange={setBankName}>
               <SelectTrigger id="bank_name">
                 <SelectValue placeholder="Select a bank" />
               </SelectTrigger>

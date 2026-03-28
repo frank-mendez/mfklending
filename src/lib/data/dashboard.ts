@@ -80,7 +80,9 @@ export async function getCashFlowByMonth(months: number): Promise<CashFlowEntry[
 
   const { data, error } = await supabase
     .from('payments')
-    .select('amount_paid, paid_at, payment_type')
+    .select(
+      'amount_paid, paid_at, payment_type, penalty_amount, schedule:loan_schedules(interest_due, principal_due)'
+    )
     .gte('paid_at', startDate.toISOString())
     .order('paid_at', { ascending: true })
 
@@ -103,11 +105,28 @@ export async function getCashFlowByMonth(months: number): Promise<CashFlowEntry[
     const entry = monthMap.get(label)
     if (!entry) continue
 
+    const scheduleRaw = payment.schedule as unknown
+    const schedule = Array.isArray(scheduleRaw)
+      ? ((scheduleRaw[0] as { interest_due: number; principal_due: number } | undefined) ?? null)
+      : (scheduleRaw as { interest_due: number; principal_due: number } | null)
+    const penalty = payment.penalty_amount ?? 0
+
     if (payment.payment_type === 'interest') {
-      entry.interest += payment.amount_paid
-    } else if (payment.payment_type === 'principal' || payment.payment_type === 'full') {
-      entry.principal += payment.amount_paid
+      // Subtract penalty — only the actual interest portion belongs in this bar
+      entry.interest += Math.max(0, payment.amount_paid - penalty)
+    } else if (payment.payment_type === 'principal') {
+      entry.principal += Math.max(0, payment.amount_paid - penalty)
+    } else if (payment.payment_type === 'full') {
+      // Split using schedule amounts so interest and principal are reported accurately.
+      // Fall back to the net amount as principal if no schedule is linked.
+      if (schedule) {
+        entry.interest += schedule.interest_due
+        entry.principal += schedule.principal_due
+      } else {
+        entry.principal += Math.max(0, payment.amount_paid - penalty)
+      }
     }
+    // payment_type === 'penalty': skip — penalties are fees, not interest or principal
   }
 
   return Array.from(monthMap.values())
