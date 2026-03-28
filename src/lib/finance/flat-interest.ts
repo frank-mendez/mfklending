@@ -7,7 +7,7 @@
  * All monetary values are in centavos (integers). ₱1 = 100 centavos.
  */
 
-import { addMonths, format } from 'date-fns'
+import { addMonths, format, parseISO } from 'date-fns'
 import type { LoanScheduleEntry } from './types'
 
 /** Parameters for generating a flat interest loan schedule */
@@ -91,7 +91,7 @@ export function calcFlatTotalInterest(principal: number, rate: number, termMonth
 export function calcFlatSchedule(params: FlatScheduleParams): LoanScheduleEntry[] {
   const { principal, rate, termMonths, startDate } = params
   const monthlyInterest = calcMonthlyInterest(principal, rate)
-  const baseDate = new Date(startDate)
+  const baseDate = parseISO(startDate)
   const schedule: LoanScheduleEntry[] = []
 
   for (let period = 1; period <= termMonths; period++) {

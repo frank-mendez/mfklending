@@ -38,6 +38,12 @@ describe('calcDiminishingMonthlyPayment', () => {
     expect(Number.isInteger(calcDiminishingMonthlyPayment(1550000, 0.05, 6))).toBe(true)
   })
 
+  it('termMonths <= 0 throws an error', () => {
+    expect(() => calcDiminishingMonthlyPayment(3000000, 0.05, 0)).toThrow()
+    expect(() => calcDiminishingMonthlyPayment(3000000, 0.05, -1)).toThrow()
+    expect(() => calcDiminishingMonthlyPayment(3000000, 0, 0)).toThrow()
+  })
+
   it('always > 0 when principal > 0', () => {
     expect(calcDiminishingMonthlyPayment(3000000, 0.05, 12)).toBeGreaterThan(0)
     expect(calcDiminishingMonthlyPayment(100, 0.05, 1)).toBeGreaterThan(0)

@@ -9,7 +9,7 @@
  * All monetary values are in centavos (integers). ₱1 = 100 centavos.
  */
 
-import { addMonths, format } from 'date-fns'
+import { addMonths, format, parseISO } from 'date-fns'
 import type { LoanScheduleEntry, RecordedPayment } from './types'
 
 /** Parameters for generating a diminishing balance loan schedule */
@@ -44,6 +44,9 @@ export function calcDiminishingMonthlyPayment(
   rate: number,
   termMonths: number
 ): number {
+  if (termMonths <= 0) {
+    throw new Error('calcDiminishingMonthlyPayment: termMonths must be a positive integer')
+  }
   if (rate === 0) return Math.round(principal / termMonths)
   const factor = (1 + rate) ** termMonths
   return Math.round((principal * rate * factor) / (factor - 1))
@@ -68,7 +71,7 @@ export function calcDiminishingMonthlyPayment(
 export function calcDiminishingSchedule(params: DiminishingScheduleParams): LoanScheduleEntry[] {
   const { principal, rate, termMonths, startDate } = params
   const monthlyPayment = calcDiminishingMonthlyPayment(principal, rate, termMonths)
-  const baseDate = new Date(startDate)
+  const baseDate = parseISO(startDate)
   const schedule: LoanScheduleEntry[] = []
   let remainingBalance = principal
 
