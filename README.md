@@ -17,19 +17,22 @@ A full-stack lending management system for **MFK Lending Corporation** — a sma
 
 ## Tech Stack
 
-| Layer | Technology |
-|---|---|
-| Framework | [Next.js 15](https://nextjs.org) (App Router, Turbopack) |
-| Styling | [Tailwind CSS v4](https://tailwindcss.com) + [shadcn/ui](https://ui.shadcn.com) |
-| Database | [Supabase](https://supabase.com) (PostgreSQL) |
-| Auth | Supabase Auth |
-| Storage | Supabase Storage |
-| PDF | `@react-pdf/renderer` |
-| Email | [Resend](https://resend.com) |
-| SMS | [Semaphore](https://semaphore.co) (Philippine carrier) |
-| E-Signature | [SignWell API](https://signwell.com) |
-| Scheduling | Vercel Cron Jobs |
-| Deployment | [Vercel](https://vercel.com) |
+| Layer        | Technology                                                                      |
+| ------------ | ------------------------------------------------------------------------------- |
+| Framework    | [Next.js 15](https://nextjs.org) (App Router, Turbopack)                        |
+| Styling      | [Tailwind CSS v4](https://tailwindcss.com) + [shadcn/ui](https://ui.shadcn.com) |
+| Database     | [Supabase](https://supabase.com) (PostgreSQL)                                   |
+| Auth         | Supabase Auth                                                                   |
+| Storage      | Supabase Storage                                                                |
+| Server State | [TanStack Query v5](https://tanstack.com/query/v5)                              |
+| Client State | [Zustand v5](https://zustand-demo.pmnd.rs)                                      |
+| PDF          | `@react-pdf/renderer`                                                           |
+| Email        | [Resend](https://resend.com)                                                    |
+| SMS          | [Semaphore](https://semaphore.co) (Philippine carrier)                          |
+| E-Signature  | [SignWell API](https://signwell.com)                                            |
+| Scheduling   | Vercel Cron Jobs                                                                |
+| Monitoring   | [Sentry](https://sentry.io) (errors, performance, session replay)               |
+| Deployment   | [Vercel](https://vercel.com)                                                    |
 
 ---
 
@@ -141,6 +144,7 @@ mfk-lending/
 ## Loan Types
 
 ### Flat Interest (Monthly Interest)
+
 The borrower pays **interest only** each month, then repays the full principal at the end of the term.
 
 ```
@@ -149,9 +153,10 @@ Total repayment   = Principal + (Monthly interest × Term months)
 Late penalty      = Days late × 1% × Monthly interest
 ```
 
-*Example: ₱30,000 loan over 3 months → ₱1,500/month interest → ₱34,500 total*
+_Example: ₱30,000 loan over 3 months → ₱1,500/month interest → ₱34,500 total_
 
 ### Diminishing Balance
+
 Monthly payments reduce the outstanding principal. Interest is recalculated on the remaining balance each month using standard amortization.
 
 ```
@@ -162,22 +167,23 @@ Monthly payment = P × [r(1+r)ⁿ] / [(1+r)ⁿ − 1]
 
 ## Database Schema
 
-| Table | Description |
-|---|---|
-| `partners` | Frank, Francis, Kim — the three co-op members |
-| `contributions` | Monthly stash payments per partner |
-| `dividends` | Yearly profit distributions per partner |
-| `borrowers` | Loan applicant profiles and bank details |
-| `loans` | Loan records with type, principal, term, and status |
-| `loan_schedules` | Per-period payment schedule (principal + interest due) |
-| `payments` | Recorded payments against loan schedules |
-| `bank_transactions` | GoTyme Bank statement entries (imported or manual) |
+| Table               | Description                                            |
+| ------------------- | ------------------------------------------------------ |
+| `partners`          | Frank, Francis, Kim — the three co-op members          |
+| `contributions`     | Monthly stash payments per partner                     |
+| `dividends`         | Yearly profit distributions per partner                |
+| `borrowers`         | Loan applicant profiles and bank details               |
+| `loans`             | Loan records with type, principal, term, and status    |
+| `loan_schedules`    | Per-period payment schedule (principal + interest due) |
+| `payments`          | Recorded payments against loan schedules               |
+| `bank_transactions` | GoTyme Bank statement entries (imported or manual)     |
 
 ---
 
 ## Automated Reminders
 
 A Vercel Cron job runs daily and sends:
+
 - A **reminder** 3 days before a payment is due
 - An **overdue notice** the day after a missed payment, with accruing penalty info
 - A **partner alert** if a loan remains unpaid beyond a configurable grace period
@@ -189,6 +195,7 @@ Notifications are sent via email (Resend) and SMS (Semaphore).
 ## Contract Generation
 
 When a new loan is created:
+
 1. A PDF contract is generated with all borrower and loan details pre-filled
 2. The document is uploaded to SignWell and sent to the borrower's email for e-signature
 3. A webhook from SignWell updates the loan record once signed
@@ -200,13 +207,13 @@ When a new loan is created:
 
 Existing records from the MFK Google Sheet are migrated via `scripts/seed.ts`:
 
-| Sheet Tab | Target Tables |
-|---|---|
-| Stash | `contributions` |
-| Lending | `borrowers`, `loans`, `payments` |
-| Summary | `bank_transactions`, `dividends` |
+| Sheet Tab       | Target Tables                         |
+| --------------- | ------------------------------------- |
+| Stash           | `contributions`                       |
+| Lending         | `borrowers`, `loans`, `payments`      |
+| Summary         | `bank_transactions`, `dividends`      |
 | AHA-Diminishing | `loans`, `loan_schedules`, `payments` |
-| VZ-Diminishing | `loans`, `loan_schedules`, `payments` |
+| VZ-Diminishing  | `loans`, `loan_schedules`, `payments` |
 
 ---
 
@@ -218,6 +225,9 @@ Existing records from the MFK Google Sheet are migrated via `scripts/seed.ts`:
 - **Timestamps** are stored in UTC in Supabase and converted to `Asia/Manila` (UTC+8) on display.
 - **Penalty** of 1% per day applies to the accrued interest amount — not the principal.
 - **GoTyme** has no public API. Bank data is ingested via CSV export until an API becomes available.
+- **Sentry** is used for error monitoring and performance tracing. All Server Action failures
+  are captured with context. Session Replay has `maskAllText: true` to protect borrower PII.
+  Source maps are uploaded during Vercel builds — do not disable this.
 
 ---
 

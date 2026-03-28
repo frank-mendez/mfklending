@@ -9,6 +9,7 @@ A full-stack lending management system for **MFK Lending Corporation**, a small 
 ## Business Logic & Domain Rules
 
 ### Partners & Stash Fund
+
 - Three partners: **Frank**, **Francis**, **Kim**
 - Each contributes monthly into a shared fund ("stash")
   - ₱2,000/month (Oct 2022 – Nov 2023)
@@ -20,6 +21,7 @@ A full-stack lending management system for **MFK Lending Corporation**, a small 
 ### Loan Types
 
 #### 1. Monthly Interest Loan (Flat)
+
 - Borrower pays **interest only** each month (5% × principal)
 - Principal is repaid in full at the **end of the loan term**
 - Standard term: **3 months**
@@ -29,16 +31,19 @@ A full-stack lending management system for **MFK Lending Corporation**, a small 
 - Late payment penalty: **1% per day** on accrued interest
 
 #### 2. Diminishing Balance Loan
+
 - Monthly payment reduces outstanding principal
 - Interest is recalculated on the **remaining balance** each month
 - Two known borrowers: Al Huber Allere (AHA) and Vanessa Zambas (VZ)
 - Payment schedule is tracked separately per borrower
 
 ### Interest Rate
+
 - Standard rate: **5% per month** (flat or diminishing depending on loan type)
 - Rate is applied on outstanding balance
 
 ### Loan Lifecycle
+
 1. Agreement created → sent via SignWell for e-signature
 2. Funds disbursed to borrower's bank account (e.g., BPI)
 3. Monthly interest payments to MFK GoTyme Bank account
@@ -46,6 +51,7 @@ A full-stack lending management system for **MFK Lending Corporation**, a small 
 5. Loan marked as **paid** (gray in spreadsheet) or **active** (colored)
 
 ### Contract Details (from sample agreement)
+
 - MFK collection account: **GoTyme Bank**, Account Name: MFK Lending Corp, Account No.: `014721202843`
 - Borrower disbursement via their personal online bank account
 - Contract fields: Full Name, Age, Occupation, Contact, Email, Bank, Account No., Loan Purpose, Loan Amount
@@ -56,46 +62,156 @@ A full-stack lending management system for **MFK Lending Corporation**, a small 
 
 ## Tech Stack
 
-| Layer | Technology |
-|---|---|
-| Frontend | Next.js 15 (App Router, Turbopack) |
-| Styling | Tailwind CSS v4 + shadcn/ui |
-| Backend | Next.js 15 Server Actions / Route Handlers |
-| Database | Supabase (PostgreSQL) |
-| Auth | Supabase Auth |
-| File Storage | Supabase Storage (for contracts) |
-| PDF Generation | `@react-pdf/renderer` or `puppeteer` |
-| Email/SMS | Resend (email) + Semaphore or Vonage (PH SMS) |
-| E-Signature | SignWell API |
-| Scheduling | Vercel Cron Jobs |
-| Deployment | Vercel |
+| Layer            | Technology                                                          |
+| ---------------- | ------------------------------------------------------------------- |
+| Frontend         | Next.js 15 (App Router, Turbopack)                                  |
+| Styling          | Tailwind CSS v4 + shadcn/ui                                         |
+| Backend          | Next.js 15 Server Actions / Route Handlers                          |
+| Database         | Supabase (PostgreSQL)                                               |
+| Auth             | Supabase Auth                                                       |
+| File Storage     | Supabase Storage (for contracts)                                    |
+| Server State     | TanStack Query v5 (caching, background refetch, optimistic updates) |
+| Client State     | Zustand v5 (UI state, multi-step forms, sidebar, filters)           |
+| PDF Generation   | `@react-pdf/renderer`                                               |
+| Email/SMS        | Resend (email) + Semaphore (PH SMS)                                 |
+| E-Signature      | SignWell API                                                        |
+| Scheduling       | Vercel Cron Jobs                                                    |
+| Error Monitoring | Sentry (errors, performance, session replay)                        |
+| Deployment       | Vercel                                                              |
+
+### State Management Boundaries
+
+Understanding what goes where prevents over-engineering:
+
+**TanStack Query** — owns all data that comes from or goes to Supabase:
+
+- Loan lists, borrower profiles, payment schedules, stash contributions
+- Caches server responses and keeps them fresh in the background
+- Handles optimistic updates when recording payments (update UI before server confirms)
+- Invalidates related queries after a mutation (e.g., recording a payment invalidates
+  the loan detail query and the dashboard summary query)
+- Use `queryOptions()` pattern to colocate query keys and fetcher functions
+
+**Zustand** — owns ephemeral UI state that does not need to be persisted:
+
+- Multi-step loan creation form state (current step, form values across steps)
+- Sidebar open/closed state on mobile
+- Active filter selections on the loans list (status, type, search term)
+- Dialog open/closed state when it needs to be controlled from outside the dialog
+- Do NOT put server data in Zustand — that belongs in TanStack Query
+
+**React `useState`** — for purely local, single-component state:
+
+- Input focus, hover states, toggle within a single component
+- Anything that does not need to be shared between components
+
+**Server Actions + `useActionState`** — for form mutations:
+
+- All create/update/delete operations go through Server Actions
+- TanStack Query `invalidateQueries` is called after a successful mutation
+
+### TanStack Query Setup
+
+Wrap the dashboard layout with a QueryClientProvider in a 'use client' component:
+
+```typescript
+// src/components/providers/QueryProvider.tsx
+'use client'
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
+import { useState } from 'react'
+
+export function QueryProvider({ children }: { children: React.ReactNode }) {
+  const [queryClient] = useState(() => new QueryClient({
+    defaultOptions: {
+      queries: {
+        staleTime: 60 * 1000,       // 1 minute
+        gcTime: 5 * 60 * 1000,      // 5 minutes garbage collection
+        retry: 1,
+        refetchOnWindowFocus: true,
+      },
+    },
+  }))
+  return <QueryClientProvider client={queryClient}>{children}</QueryClientProvider>
+}
+```
+
+Install React Query Devtools for development only: `@tanstack/react-query-devtools`
+
+### Zustand Store Structure
+
+One store per domain — never one global store:
+
+```
+src/stores/
+  loan-form.store.ts   — multi-step loan creation state
+  ui.store.ts          — sidebar, modals, global UI state
+  filters.store.ts     — loan list and borrower list filter state
+```
+
+### Query Key Conventions
+
+Define all query keys as constants in src/lib/query-keys.ts:
+
+```typescript
+export const queryKeys = {
+  loans: {
+    all: ["loans"] as const,
+    lists: () => [...queryKeys.loans.all, "list"] as const,
+    list: (filters: LoanFilters) =>
+      [...queryKeys.loans.lists(), filters] as const,
+    detail: (id: string) => [...queryKeys.loans.all, "detail", id] as const,
+  },
+  borrowers: {
+    all: ["borrowers"] as const,
+    lists: () => [...queryKeys.borrowers.all, "list"] as const,
+    detail: (id: string) => [...queryKeys.borrowers.all, "detail", id] as const,
+  },
+  stash: {
+    all: ["stash"] as const,
+    contributions: () => [...queryKeys.stash.all, "contributions"] as const,
+    dividends: () => [...queryKeys.stash.all, "dividends"] as const,
+    summary: () => [...queryKeys.stash.all, "summary"] as const,
+  },
+  dashboard: {
+    all: ["dashboard"] as const,
+    summary: () => [...queryKeys.dashboard.all, "summary"] as const,
+    cashflow: (months: number) =>
+      [...queryKeys.dashboard.all, "cashflow", months] as const,
+  },
+};
+```
 
 ---
 
 ## Database Schema (Supabase)
 
 ### `partners`
+
 ```sql
 id, name, email, phone, created_at
 ```
 
 ### `contributions`
+
 ```sql
 id, partner_id, amount, month (YYYY-MM), paid_at, remarks, created_at
 ```
 
 ### `dividends`
+
 ```sql
 id, partner_id, amount, distributed_at, remarks, created_at
 ```
 
 ### `borrowers`
+
 ```sql
 id, full_name, age, occupation, email, phone,
 bank_name, account_name, account_number, created_at
 ```
 
 ### `loans`
+
 ```sql
 id, borrower_id, loan_type (flat_interest | diminishing),
 principal, interest_rate (default 0.05), term_months,
@@ -106,6 +222,7 @@ created_at, updated_at
 ```
 
 ### `loan_schedules`
+
 ```sql
 id, loan_id, due_date, period_number,
 principal_due, interest_due, total_due,
@@ -113,6 +230,7 @@ balance_after, status (pending | paid | late)
 ```
 
 ### `payments`
+
 ```sql
 id, loan_id, schedule_id (nullable),
 amount_paid, paid_at, payment_type (interest | principal | penalty | full),
@@ -120,12 +238,14 @@ late_days, penalty_amount, remarks, created_at
 ```
 
 ### `bank_transactions`
+
 ```sql
 id, transaction_date, description, amount, type (credit | debit),
 balance, source (gotyme_import | manual), reference_no, created_at
 ```
 
 ### `fund_summary` (computed view or materialized)
+
 ```sql
 total_stash, total_loaned_out, total_collected_interest,
 total_penalties, total_dividends_paid, current_balance
@@ -193,6 +313,7 @@ mfk-lending/
 ## Key Features to Build
 
 ### 1. Dashboard
+
 - Total fund value (stash + earned interest − dividends − loans outstanding)
 - Active loans count and total amount
 - Overdue payments alert
@@ -200,6 +321,7 @@ mfk-lending/
 - Per-partner stash contribution status
 
 ### 2. Loan Management
+
 - Create loan (choose type: flat or diminishing)
 - Auto-generate amortization/payment schedule on creation
 - Track payment status per period
@@ -207,24 +329,28 @@ mfk-lending/
 - Loan status badges: Active / Paid / Defaulted / Overdue
 
 ### 3. Contract Generation
+
 - Pre-fill contract PDF from loan + borrower data
 - Send via SignWell API for e-signature
 - Webhook to update contract status when signed
 - Store signed PDF in Supabase Storage
 
 ### 4. Automated Reminders
+
 - Vercel Cron: run daily (or 3 days before due date)
 - Send email via Resend + SMS via Semaphore (Philippine carrier)
 - Reminder template: borrower name, due date, amount due, MFK payment account
 - Escalation: mark overdue + notify partners if unpaid after due date
 
 ### 5. Stash Tracker
+
 - Monthly contribution grid (Frank / Kim / Francis × month)
 - Mark paid/unpaid per month per partner
 - Track irregular payments with remarks
 - Running total per partner and grand total
 
 ### 6. Reports & Summaries
+
 - Gains report: total interest earned per period
 - Dividend distribution calculator and history
 - Loan book: all loans, grouped by status
@@ -232,6 +358,7 @@ mfk-lending/
 - Bank interest earned (from GoTyme)
 
 ### 7. GoTyme Bank Integration (Phase 2)
+
 - Manual CSV import of bank statements initially
 - Map transactions to loan payments or stash contributions
 - Reconcile expected vs. actual payments
@@ -242,26 +369,28 @@ mfk-lending/
 ## Financial Calculations Reference
 
 ### Flat Interest (Monthly Interest Loan)
+
 ```typescript
 // Monthly interest payment
-monthlyInterest = principal * interestRate  // e.g., 30000 * 0.05 = 1500
+monthlyInterest = principal * interestRate; // e.g., 30000 * 0.05 = 1500
 
 // Total repayment at end of term
-totalRepayment = principal + (monthlyInterest * termMonths)
+totalRepayment = principal + monthlyInterest * termMonths;
 
 // Late payment penalty
-penalty = (daysLate * 0.01) * monthlyInterest
+penalty = daysLate * 0.01 * monthlyInterest;
 ```
 
 ### Diminishing Balance
+
 ```typescript
 // Each month:
-interest = remainingBalance * interestRate
-principalPayment = monthlyPayment - interest
-remainingBalance = remainingBalance - principalPayment
+interest = remainingBalance * interestRate;
+principalPayment = monthlyPayment - interest;
+remainingBalance = remainingBalance - principalPayment;
 
 // Monthly payment (standard amortization formula)
-monthlyPayment = principal * (r * (1+r)^n) / ((1+r)^n - 1)
+monthlyPayment = (principal * ((r * (1 + r)) ^ n)) / ((1 + r) ^ (n - 1));
 // where r = monthly rate, n = number of periods
 ```
 
@@ -270,36 +399,39 @@ monthlyPayment = principal * (r * (1+r)^n) / ((1+r)^n - 1)
 ## MCP Servers (Recommended)
 
 ### Development
-| MCP Server | Purpose |
-|---|---|
-| **Supabase MCP** | Query and manage Supabase DB directly from Claude |
-| **GitHub MCP** | Commit, PR, and branch management |
-| **Vercel MCP** | Deployment status, environment variables |
-| **Filesystem MCP** | Read/write project files locally |
+
+| MCP Server         | Purpose                                           |
+| ------------------ | ------------------------------------------------- |
+| **Supabase MCP**   | Query and manage Supabase DB directly from Claude |
+| **GitHub MCP**     | Commit, PR, and branch management                 |
+| **Vercel MCP**     | Deployment status, environment variables          |
+| **Filesystem MCP** | Read/write project files locally                  |
 
 ### Productivity & Communication
-| MCP Server | Purpose |
-|---|---|
-| **Resend MCP** | Preview and send transactional emails |
-| **Slack MCP** | Internal partner notifications (optional) |
+
+| MCP Server           | Purpose                                              |
+| -------------------- | ---------------------------------------------------- |
+| **Resend MCP**       | Preview and send transactional emails                |
+| **Slack MCP**        | Internal partner notifications (optional)            |
 | **Google Drive MCP** | Access existing spreadsheet records during migration |
 
 ### Data
-| MCP Server | Purpose |
-|---|---|
-| **PostgreSQL MCP** | Direct SQL queries to Supabase Postgres |
+
+| MCP Server                | Purpose                                      |
+| ------------------------- | -------------------------------------------- |
+| **PostgreSQL MCP**        | Direct SQL queries to Supabase Postgres      |
 | **Browser/Puppeteer MCP** | Scrape GoTyme statements if no API (Phase 2) |
 
 ---
 
 ## Useful Claude Skills for This Project
 
-| Skill | Use Case |
-|---|---|
-| `docx` | Generate/read loan contract Word templates |
-| `pdf` | Create PDF contracts from HTML/data |
-| `xlsx` | Import existing stash/lending spreadsheet data |
-| `frontend-design` | Build polished Next.js UI components |
+| Skill                    | Use Case                                       |
+| ------------------------ | ---------------------------------------------- |
+| `docx`                   | Generate/read loan contract Word templates     |
+| `pdf`                    | Create PDF contracts from HTML/data            |
+| `xlsx`                   | Import existing stash/lending spreadsheet data |
+| `frontend-design`        | Build polished Next.js UI components           |
 | `product-self-knowledge` | Reference Anthropic API for in-app AI features |
 
 ---
@@ -348,38 +480,209 @@ Create a seed script at `scripts/seed.ts` that reads the CSV and inserts records
 
 Based on the signed Melca Ybañez agreement:
 
-| Field | Source |
-|---|---|
-| Full Name | `borrowers.full_name` |
-| Age | `borrowers.age` |
-| Occupation | `borrowers.occupation` |
-| Contact Number | `borrowers.phone` |
-| Email | `borrowers.email` |
-| Loan Purpose | `loans.purpose` |
-| Initial Loan Amount | `loans.principal` |
-| Bank | `borrowers.bank_name` |
-| Account Name | `borrowers.account_name` |
-| Account Number | `borrowers.account_number` |
+| Field                 | Source                             |
+| --------------------- | ---------------------------------- |
+| Full Name             | `borrowers.full_name`              |
+| Age                   | `borrowers.age`                    |
+| Occupation            | `borrowers.occupation`             |
+| Contact Number        | `borrowers.phone`                  |
+| Email                 | `borrowers.email`                  |
+| Loan Purpose          | `loans.purpose`                    |
+| Initial Loan Amount   | `loans.principal`                  |
+| Bank                  | `borrowers.bank_name`              |
+| Account Name          | `borrowers.account_name`           |
+| Account Number        | `borrowers.account_number`         |
 | Monthly Interest Rate | `loans.interest_rate` (default 5%) |
-| Loan Term | `loans.term_months` |
-| Total Repayment | computed |
-| Date | contract generation date |
+| Loan Term             | `loans.term_months`                |
+| Total Repayment       | computed                           |
+| Date                  | contract generation date           |
 
 MFK collection account is static:
+
 - Bank: GoTyme Bank
 - Account Name: MFK Lending Corp
 - Account Number: 014721202843
 
 ---
 
+## Sentry Integration
+
+Sentry is used for error monitoring, performance tracing, and session replay across
+the entire MFK Lending app. Because this is a financial tool, all unhandled errors
+and slow transactions must be captured and alerted on.
+
+### What to monitor
+
+| Layer             | What Sentry captures                                            |
+| ----------------- | --------------------------------------------------------------- |
+| Server Components | Unhandled exceptions during data fetching                       |
+| Server Actions    | Failures in createLoan, recordPayment, createBorrower           |
+| Route Handlers    | Errors in /api/reminders, /api/webhooks/signwell                |
+| Client Components | React render errors via Error Boundaries                        |
+| Finance Engine    | Manually logged calculation errors (should never throw in prod) |
+| TanStack Query    | Query errors surfaced to the user                               |
+| Performance       | Slow DB queries, slow Server Actions, slow page loads           |
+
+### Installation
+
+```bash
+npx @sentry/wizard@latest -i nextjs
+```
+
+The wizard handles:
+
+- Installing `@sentry/nextjs`
+- Creating `sentry.client.config.ts`, `sentry.server.config.ts`, `sentry.edge.config.ts`
+- Wrapping `next.config.ts` with `withSentryConfig`
+- Creating `src/app/global-error.tsx` (Sentry-aware global error boundary)
+
+### Environment variables
+
+```env
+# Sentry
+NEXT_PUBLIC_SENTRY_DSN=
+SENTRY_ORG=
+SENTRY_PROJECT=
+SENTRY_AUTH_TOKEN=        # For source map uploads (Vercel build only)
+```
+
+`NEXT_PUBLIC_SENTRY_DSN` is safe to expose — it is a public ingest URL.
+`SENTRY_AUTH_TOKEN` must NEVER be prefixed with `NEXT_PUBLIC_`. Add it to
+Vercel environment variables for Production and Preview only, not Development.
+
+### Configuration
+
+**sentry.client.config.ts:**
+
+```typescript
+import * as Sentry from "@sentry/nextjs";
+
+Sentry.init({
+  dsn: process.env.NEXT_PUBLIC_SENTRY_DSN,
+  environment: process.env.NODE_ENV,
+  tracesSampleRate: process.env.NODE_ENV === "production" ? 0.2 : 1.0,
+  replaysSessionSampleRate: 0.1, // 10% of sessions
+  replaysOnErrorSampleRate: 1.0, // 100% of sessions with errors
+  integrations: [
+    Sentry.replayIntegration({
+      maskAllText: true, // mask all text — borrower PII protection
+      blockAllMedia: true,
+    }),
+  ],
+});
+```
+
+**sentry.server.config.ts:**
+
+```typescript
+import * as Sentry from "@sentry/nextjs";
+
+Sentry.init({
+  dsn: process.env.NEXT_PUBLIC_SENTRY_DSN,
+  environment: process.env.NODE_ENV,
+  tracesSampleRate: process.env.NODE_ENV === "production" ? 0.2 : 1.0,
+});
+```
+
+### Manual error capture in Server Actions
+
+All Server Actions that touch financial data must wrap their logic in a try/catch
+and report unexpected errors to Sentry with context:
+
+```typescript
+import * as Sentry from "@sentry/nextjs";
+
+export async function recordPayment(
+  prevState: ActionState,
+  formData: FormData,
+) {
+  try {
+    // ... payment logic
+  } catch (error) {
+    Sentry.captureException(error, {
+      tags: { action: "recordPayment" },
+      extra: { loanId: formData.get("loanId") },
+    });
+    return actionError(
+      "An unexpected error occurred. Our team has been notified.",
+    );
+  }
+}
+```
+
+### Custom context — attach user identity
+
+In the dashboard layout, set the Sentry user context after auth:
+
+```typescript
+// Server Component — get session
+const {
+  data: { user },
+} = await supabase.auth.getUser();
+
+// Client Component — set Sentry user
+Sentry.setUser({ email: user?.email, id: user?.id });
+```
+
+Clear user on sign out: `Sentry.setUser(null)`
+
+### Performance — instrument slow operations
+
+Use Sentry spans to trace slow DB queries and finance calculations:
+
+```typescript
+const schedule = Sentry.startSpan(
+  { name: "generateSchedule", op: "finance.calculate" },
+  () => generateSchedule(params),
+);
+```
+
+### PII and privacy rules
+
+Because borrower data (names, account numbers, loan amounts) is sensitive:
+
+- `maskAllText: true` in Session Replay — no text is visible in recordings
+- `blockAllMedia: true` — no screenshots of sensitive content
+- Do NOT pass borrower account numbers as Sentry extra/context
+- Do NOT pass loan amounts as Sentry tags — use loan IDs only
+- Sentry breadcrumbs automatically capture navigation — this is acceptable
+- Review Sentry's data scrubbing rules in the project settings and add
+  patterns for Philippine phone numbers and bank account numbers
+
+### Alerts to configure in Sentry dashboard
+
+| Alert                 | Condition                          | Notify via            |
+| --------------------- | ---------------------------------- | --------------------- |
+| Any new error         | First seen                         | Email to all partners |
+| Error spike           | >10 errors/hour                    | Email + Slack         |
+| Server Action failure | recordPayment or createLoan throws | Email immediately     |
+| Slow transaction      | p95 > 3s on any Server Action      | Email                 |
+| Cron job failure      | /api/reminders errors              | Email immediately     |
+
+### Source maps
+
+Source maps are uploaded to Sentry during Vercel builds via `SENTRY_AUTH_TOKEN`.
+This means error stack traces in Sentry point to your original TypeScript source,
+not the compiled output. Do not disable this — it is essential for debugging.
+
+Add to .gitignore:
+.sentryclirc
+
+---
+
 ## Notes & Gotchas
 
 ### Next.js 15 Specifics
+
 - **`params` and `searchParams` are async** — always `await params` in page components and route handlers:
   ```typescript
   // app/(dashboard)/loans/[id]/page.tsx
-  export default async function LoanPage({ params }: { params: Promise<{ id: string }> }) {
-    const { id } = await params
+  export default async function LoanPage({
+    params,
+  }: {
+    params: Promise<{ id: string }>;
+  }) {
+    const { id } = await params;
     // ...
   }
   ```
@@ -394,58 +697,5 @@ MFK collection account is static:
 - **GoTyme**: No public API as of 2026. Use CSV import as primary data entry method.
 - **SignWell**: Free tier supports up to 3 documents/month. Upgrade if volume increases.
 - **Loan status colors** (from spreadsheet): gray = paid, colored = active. Replicate with status badges in UI.
-- **Penalty calculation**: 1% per day applies to the *accrued interest amount* (not the principal).
+- **Penalty calculation**: 1% per day applies to the _accrued interest amount_ (not the principal).
 - **Stash irregularities**: Some months have lump-sum catch-up payments — the `remarks` field must be preserved.
-
----
-
-## GitHub Branch Protection
-
-Configure these rules in GitHub → Settings → Branches for both `main` and `develop`:
-
-### Branch: main (production)
-- Require a pull request before merging
-- Require all status checks to pass:
-  - Type Check
-  - Lint & Format
-  - Unit Tests & Coverage
-  - Next.js Build
-- Require branches to be up to date before merging
-- Require at least 1 approval
-- Do not allow bypassing the above settings
-
-### Branch: develop (staging)
-- Require a pull request before merging
-- Require all status checks to pass (same four checks)
-- No approval required (faster iteration)
-
-### Branch naming convention
-- Phase work:    phase/1-migration, phase/2-finance, phase/3-ui
-- Features:      feat/loan-form, feat/payment-reminders
-- Bug fixes:     fix/penalty-calculation, fix/overdue-detection
-- Hotfixes:      hotfix/contract-webhook
-- Cleanup:       chore/update-deps, chore/seed-reset
-
----
-
-## GitHub Secrets
-
-Add these in GitHub → Settings → Secrets and variables → Actions:
-
-### Required for CI (pr.yml and deploy.yml)
-| Secret | Description |
-|---|---|
-| NEXT_PUBLIC_SUPABASE_URL | Supabase project URL — safe to expose, needed for build |
-| NEXT_PUBLIC_SUPABASE_ANON_KEY | Supabase anon key — safe to expose, needed for build |
-
-### Never add to GitHub Secrets for CI use
-| Variable | Reason |
-|---|---|
-| SUPABASE_SERVICE_ROLE_KEY | Bypasses RLS — only use locally in seed scripts |
-| SIGNWELL_API_KEY | Not needed at build time |
-| RESEND_API_KEY | Not needed at build time |
-| SEMAPHORE_API_KEY | Not needed at build time |
-| CRON_SECRET | Vercel handles this, not GitHub Actions |
-
-Vercel environment variables are managed separately in the Vercel dashboard
-and are injected at runtime — they do not go through GitHub Secrets.
