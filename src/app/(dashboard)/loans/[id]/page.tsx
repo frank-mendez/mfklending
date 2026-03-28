@@ -3,7 +3,7 @@ import { notFound } from 'next/navigation'
 import { LoanDetailClient } from '@/components/loans/LoanDetailClient'
 import { PageHeader } from '@/components/shared/PageHeader'
 import { Button } from '@/components/ui/button'
-import { getLoanById } from '@/lib/data/loans'
+import { getLoanById } from '@/lib/data/loans.server'
 
 interface LoanPageProps {
   params: Promise<{ id: string }>

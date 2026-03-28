@@ -2,7 +2,7 @@ import Link from 'next/link'
 import { LoansClient } from '@/components/loans/LoansClient'
 import { PageHeader } from '@/components/shared/PageHeader'
 import { Button } from '@/components/ui/button'
-import { getLoans } from '@/lib/data/loans'
+import { getLoans } from '@/lib/data/loans.server'
 
 export default async function LoansPage() {
   const loans = await getLoans()
