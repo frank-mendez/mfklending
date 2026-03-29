@@ -19,6 +19,10 @@ export async function queryLoans(
     query = query.eq('loan_type', filters.loanType)
   }
 
+  if (filters?.loanSearch) {
+    query = query.ilike('borrower.full_name', `%${filters.loanSearch}%`)
+  }
+
   const { data, error } = await query
 
   if (error) {
@@ -26,14 +30,7 @@ export async function queryLoans(
     return []
   }
 
-  let results = (data ?? []) as unknown as LoanWithBorrower[]
-
-  if (filters?.loanSearch) {
-    const term = filters.loanSearch.toLowerCase()
-    results = results.filter((loan) => loan.borrower.full_name.toLowerCase().includes(term))
-  }
-
-  return results
+  return (data ?? []) as unknown as LoanWithBorrower[]
 }
 
 export async function queryLoanById(

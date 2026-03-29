@@ -2,7 +2,7 @@
 
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import dynamic from 'next/dynamic'
-import { useState } from 'react'
+import { type ReactNode, useState } from 'react'
 
 const ReactQueryDevtools =
   process.env.NODE_ENV === 'development'
@@ -11,7 +11,7 @@ const ReactQueryDevtools =
       )
     : () => null
 
-export function QueryProvider({ children }: { children: React.ReactNode }) {
+export function QueryProvider({ children }: { children: ReactNode }) {
   const [queryClient] = useState(
     () =>
       new QueryClient({
