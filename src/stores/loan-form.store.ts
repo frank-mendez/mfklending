@@ -31,6 +31,6 @@ const defaultState: LoanFormState = {
 export const useLoanFormStore = create<LoanFormStore>((set) => ({
   ...defaultState,
   setStep: (step) => set({ step }),
-  setField: (field, value) => set({ [field]: value }),
+  setField: (field, value) => set({ [field]: value } as Partial<LoanFormState>),
   reset: () => set(defaultState),
 }))

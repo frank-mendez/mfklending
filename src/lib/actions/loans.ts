@@ -6,6 +6,7 @@ import { z } from 'zod'
 import { type ActionState, actionError, actionSuccess } from '@/lib/actions'
 import { generateSchedule } from '@/lib/finance'
 import { createClient } from '@/lib/supabase/server'
+import { todayManila } from '@/lib/utils/date'
 import { CreateLoanSchema, RecordPaymentSchema } from '@/lib/validations/loan.schema'
 
 export async function createLoan(
@@ -124,33 +125,36 @@ export async function recordPayment(
       return actionError('Failed to record payment. Please try again.')
     }
 
-    const { error: scheduleUpdateError } = await supabase
-      .from('loan_schedules')
-      .update({ status: 'paid' })
-      .eq('id', schedule_id)
+    // Only close the period when the full amount is settled
+    if (payment_type === 'full') {
+      const { error: scheduleUpdateError } = await supabase
+        .from('loan_schedules')
+        .update({ status: 'paid' })
+        .eq('id', schedule_id)
 
-    if (scheduleUpdateError) {
-      return actionError('Payment recorded but failed to update schedule status.')
-    }
+      if (scheduleUpdateError) {
+        return actionError('Payment recorded but failed to update schedule status.')
+      }
 
-    const { data: allSchedules, error: schedulesError } = await supabase
-      .from('loan_schedules')
-      .select('status')
-      .eq('loan_id', loan_id)
+      const { data: allSchedules, error: schedulesError } = await supabase
+        .from('loan_schedules')
+        .select('status')
+        .eq('loan_id', loan_id)
 
-    if (!schedulesError && allSchedules) {
-      const allPaid = allSchedules.every((s) => s.status === 'paid')
+      if (!schedulesError && allSchedules) {
+        const allPaid = allSchedules.every((s) => s.status === 'paid')
 
-      if (allPaid) {
-        await supabase.from('loans').update({ status: 'paid' }).eq('id', loan_id)
-      } else {
-        const today = format(new Date(), 'yyyy-MM-dd')
-        await supabase
-          .from('loan_schedules')
-          .update({ status: 'late' })
-          .eq('loan_id', loan_id)
-          .eq('status', 'pending')
-          .lt('due_date', today)
+        if (allPaid) {
+          await supabase.from('loans').update({ status: 'paid' }).eq('id', loan_id)
+        } else {
+          const today = todayManila()
+          await supabase
+            .from('loan_schedules')
+            .update({ status: 'late' })
+            .eq('loan_id', loan_id)
+            .eq('status', 'pending')
+            .lt('due_date', today)
+        }
       }
     }
 

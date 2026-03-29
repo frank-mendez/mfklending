@@ -156,7 +156,7 @@ export default function NewLoanPage() {
             {borrowers.length === 0 && !borrowersLoading && (
               <p className="text-xs text-muted-foreground">
                 No borrowers found.{' '}
-                <Link href="/dashboard/borrowers/new" className="underline">
+                <Link href="/dashboard/borrowers" className="underline">
                   Add a borrower first.
                 </Link>
               </p>

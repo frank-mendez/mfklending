@@ -61,9 +61,13 @@ export function LoansClient({ initialData }: LoansClientProps) {
     }
   }, [searchInput, setLoanSearch])
 
-  // Pre-populate cache with server data
+  // Pre-populate cache with server data using the same key as the initial query
+  // biome-ignore lint/correctness/useExhaustiveDependencies: intentionally seeds once on mount; filter values match initial store state
   useEffect(() => {
-    queryClient.setQueryData(queryKeys.loans.list({}), initialData)
+    queryClient.setQueryData(
+      queryKeys.loans.list({ loanStatus, loanType, loanSearch }),
+      initialData
+    )
   }, [queryClient, initialData])
 
   const { data: loans = initialData } = useLoans({ loanStatus, loanType, loanSearch })

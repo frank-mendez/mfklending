@@ -15,7 +15,7 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table'
-import { getBorrowerById } from '@/lib/data/borrowers'
+import { getBorrowerById } from '@/lib/data/borrowers.server'
 import { formatManila } from '@/lib/utils/date'
 
 interface PageProps {

@@ -67,8 +67,10 @@ export async function recordDividend(
     return actionError('Please fix the errors below.', z.flattenError(result.error).fieldErrors)
   }
 
-  const { amount_each_pesos, remarks } = result.data
+  const { month, amount_each_pesos, remarks } = result.data
   const amount = Math.round(amount_each_pesos * 100)
+  // Use the first day of the selected month as the distribution date
+  const distributed_at = new Date(`${month}-01T00:00:00+08:00`).toISOString()
 
   const supabase = await createClient()
 
@@ -82,7 +84,7 @@ export async function recordDividend(
   const dividendRows = partners.map((partner) => ({
     partner_id: partner.id,
     amount,
-    distributed_at: new Date().toISOString(),
+    distributed_at,
     remarks: remarks ?? null,
   }))
 

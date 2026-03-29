@@ -1,7 +1,7 @@
 'use client'
 
 import { useQueryClient } from '@tanstack/react-query'
-import { useActionState, useEffect } from 'react'
+import { useActionState, useEffect, useState } from 'react'
 import { Button } from '@/components/ui/button'
 import {
   Dialog,
@@ -40,12 +40,14 @@ export function ContributionFormDialog({
 }: ContributionFormDialogProps) {
   const queryClient = useQueryClient()
   const [state, formAction, isPending] = useActionState(recordContribution, INITIAL_STATE)
+  const [partnerId, setPartnerId] = useState('')
 
   // biome-ignore lint/correctness/useExhaustiveDependencies: intentionally only reacts to state.success
   useEffect(() => {
     if (state.success) {
       queryClient.invalidateQueries({ queryKey: queryKeys.stash.contributions() })
       queryClient.invalidateQueries({ queryKey: queryKeys.stash.summary() })
+      setPartnerId('')
       onOpenChange(false)
     }
   }, [state.success])
@@ -70,7 +72,8 @@ export function ContributionFormDialog({
           {/* Partner */}
           <div className="flex flex-col gap-1.5">
             <Label htmlFor="partner_id">Partner</Label>
-            <Select name="partner_id" required>
+            <input type="hidden" name="partner_id" value={partnerId} />
+            <Select value={partnerId} onValueChange={setPartnerId} required>
               <SelectTrigger id="partner_id">
                 <SelectValue placeholder="Select partner" />
               </SelectTrigger>

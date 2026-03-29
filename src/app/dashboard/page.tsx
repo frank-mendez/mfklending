@@ -1,6 +1,6 @@
 import { DashboardClient } from '@/components/dashboard/DashboardClient'
 import { PageHeader } from '@/components/shared/PageHeader'
-import { getActiveLoans, getFundSummary, getStashThisMonth } from '@/lib/data/dashboard'
+import { getActiveLoans, getFundSummary, getStashThisMonth } from '@/lib/data/dashboard.server'
 import { formatManila } from '@/lib/utils/date'
 
 export default async function DashboardPage() {

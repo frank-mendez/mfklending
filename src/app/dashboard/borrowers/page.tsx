@@ -1,6 +1,6 @@
 import { BorrowersClient } from '@/components/borrowers/BorrowersClient'
 import { PageHeader } from '@/components/shared/PageHeader'
-import { getBorrowers } from '@/lib/data/borrowers'
+import { getBorrowers } from '@/lib/data/borrowers.server'
 
 export default async function BorrowersPage() {
   const borrowers = await getBorrowers()

@@ -10,7 +10,7 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table'
-import { getTransactions } from '@/lib/data/transactions'
+import { getTransactions } from '@/lib/data/transactions.server'
 import { formatPHP } from '@/lib/utils/currency'
 import { formatManila } from '@/lib/utils/date'
 
