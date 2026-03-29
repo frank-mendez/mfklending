@@ -156,7 +156,7 @@ export function LoansClient({ initialData }: LoansClientProps) {
           description="No loans match your current filters."
           action={
             <Button asChild>
-              <Link href="/dashboard/loans/new">New Loan</Link>
+              <Link href="/loans/new">New Loan</Link>
             </Button>
           }
         />
@@ -218,7 +218,7 @@ export function LoansClient({ initialData }: LoansClientProps) {
                     </TableCell>
                     <TableCell className="text-right">
                       <Button variant="outline" size="sm" asChild>
-                        <Link href={`/dashboard/loans/${loan.id}`}>View</Link>
+                        <Link href={`/loans/${loan.id}`}>View</Link>
                       </Button>
                     </TableCell>
                   </TableRow>

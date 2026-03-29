@@ -14,7 +14,7 @@ export default function DashboardError({ error, reset }: ErrorProps) {
       reset={reset}
       title="Something went wrong"
       description={error.message || 'An unexpected error occurred loading the dashboard.'}
-      backHref="/dashboard"
+      backHref="/"
       backLabel="Go to dashboard"
     />
   )

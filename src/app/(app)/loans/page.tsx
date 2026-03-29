@@ -14,7 +14,7 @@ export default async function LoansPage() {
         subtitle="Manage all active and historical loans."
         action={
           <Button asChild>
-            <Link href="/dashboard/loans/new">New Loan</Link>
+            <Link href="/loans/new">New Loan</Link>
           </Button>
         }
       />

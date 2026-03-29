@@ -49,7 +49,7 @@ export function LoanDetailClient({ initialData }: LoanDetailClientProps) {
           <div className="flex flex-col gap-2">
             <div className="flex flex-wrap items-center gap-2">
               <Link
-                href={`/dashboard/borrowers/${loan.borrower.id}`}
+                href={`/borrowers/${loan.borrower.id}`}
                 className="text-2xl font-bold hover:underline"
               >
                 {loan.borrower.full_name}

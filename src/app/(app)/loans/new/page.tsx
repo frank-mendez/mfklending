@@ -60,7 +60,7 @@ export default function NewLoanPage() {
   useEffect(() => {
     if (state.success && state.data) {
       const data = state.data as { loanId: string }
-      router.push(`/dashboard/loans/${data.loanId}`)
+      router.push(`/loans/${data.loanId}`)
     }
   }, [state, router])
 
@@ -156,7 +156,7 @@ export default function NewLoanPage() {
             {borrowers.length === 0 && !borrowersLoading && (
               <p className="text-xs text-muted-foreground">
                 No borrowers found.{' '}
-                <Link href="/dashboard/borrowers" className="underline">
+                <Link href="/borrowers" className="underline">
                   Add a borrower first.
                 </Link>
               </p>
@@ -164,7 +164,7 @@ export default function NewLoanPage() {
           </div>
           <div className="flex justify-between pt-2">
             <Button variant="outline" asChild>
-              <Link href="/dashboard/loans">Back</Link>
+              <Link href="/loans">Back</Link>
             </Button>
             <Button disabled={!store.borrowerId} onClick={() => store.setStep(2)}>
               Next

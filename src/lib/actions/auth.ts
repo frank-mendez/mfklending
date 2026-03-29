@@ -29,7 +29,7 @@ export async function signIn(_prevState: ActionState, formData: FormData): Promi
     return actionError('Invalid email or password.')
   }
 
-  redirect('/dashboard')
+  redirect('/')
 }
 
 export async function signOut(): Promise<void> {

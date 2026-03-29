@@ -73,7 +73,7 @@ export function DashboardClient({
         <Card>
           <CardHeader className="flex flex-row items-center justify-between pb-3">
             <CardTitle className="text-base">Active Loans</CardTitle>
-            <Link href="/dashboard/loans">
+            <Link href="/loans">
               <Button variant="ghost" size="sm" className="text-xs">
                 View all loans →
               </Button>
@@ -119,7 +119,7 @@ export function DashboardClient({
                 </div>
               )
             })}
-            <Link href="/dashboard/stash">
+            <Link href="/stash">
               <Button variant="ghost" size="sm" className="mt-1 w-full text-xs">
                 View stash tracker →
               </Button>

@@ -108,7 +108,7 @@ export function BorrowersClient({ initialData }: BorrowersClientProps) {
                   </TableCell>
                   <TableCell>
                     <Button asChild variant="ghost" size="sm">
-                      <Link href={`/dashboard/borrowers/${borrower.id}`}>View</Link>
+                      <Link href={`/borrowers/${borrower.id}`}>View</Link>
                     </Button>
                   </TableCell>
                 </TableRow>

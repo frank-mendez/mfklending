@@ -14,7 +14,7 @@ export default function RootError({ error, reset }: ErrorProps) {
       reset={reset}
       title="Something went wrong"
       description={error.message || 'An unexpected error occurred. Please try again.'}
-      backHref="/dashboard"
+      backHref="/"
       backLabel="Go to dashboard"
       fullHeight
     />

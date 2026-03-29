@@ -7,14 +7,14 @@ interface ErrorProps {
   reset: () => void
 }
 
-export default function LoansError({ error, reset }: ErrorProps) {
+export default function StashError({ error, reset }: ErrorProps) {
   return (
     <RouteError
       error={error}
       reset={reset}
-      title="Failed to load loans"
-      description="Something went wrong. Please try again."
-      backHref="/dashboard"
+      title="Something went wrong"
+      description={error.message || 'An unexpected error occurred loading the stash page.'}
+      backHref="/"
       backLabel="Go to dashboard"
     />
   )

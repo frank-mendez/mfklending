@@ -16,12 +16,12 @@ import { signOut } from '@/lib/actions/auth'
 import { cn } from '@/lib/utils'
 
 const navItems = [
-  { href: '/dashboard', label: 'Dashboard', icon: LayoutDashboard, exact: true },
-  { href: '/dashboard/loans', label: 'Loans', icon: Banknote, exact: false },
-  { href: '/dashboard/borrowers', label: 'Borrowers', icon: Users, exact: false },
-  { href: '/dashboard/stash', label: 'Stash', icon: PiggyBank, exact: false },
-  { href: '/dashboard/transactions', label: 'Transactions', icon: ArrowLeftRight, exact: false },
-  { href: '/dashboard/reports', label: 'Reports', icon: BarChart3, exact: false },
+  { href: '/', label: 'Dashboard', icon: LayoutDashboard, exact: true },
+  { href: '/loans', label: 'Loans', icon: Banknote, exact: false },
+  { href: '/borrowers', label: 'Borrowers', icon: Users, exact: false },
+  { href: '/stash', label: 'Stash', icon: PiggyBank, exact: false },
+  { href: '/transactions', label: 'Transactions', icon: ArrowLeftRight, exact: false },
+  { href: '/reports', label: 'Reports', icon: BarChart3, exact: false },
 ]
 
 interface DashboardNavProps {

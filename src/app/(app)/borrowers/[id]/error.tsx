@@ -14,7 +14,7 @@ export default function BorrowerDetailError({ error, reset }: ErrorProps) {
       reset={reset}
       title="Failed to load borrower"
       description={error.message || 'The borrower could not be found or an error occurred.'}
-      backHref="/dashboard/borrowers"
+      backHref="/borrowers"
       backLabel="Back to borrowers"
     />
   )

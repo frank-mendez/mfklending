@@ -24,7 +24,7 @@ export default async function LoanPage({ params }: LoanPageProps) {
         subtitle={`Loan for ${loan.borrower.full_name}`}
         action={
           <Button variant="outline" asChild>
-            <Link href="/dashboard/loans">Back to Loans</Link>
+            <Link href="/loans">Back to Loans</Link>
           </Button>
         }
       />

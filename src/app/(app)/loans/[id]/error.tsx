@@ -14,7 +14,7 @@ export default function LoanDetailError({ error, reset }: ErrorProps) {
       reset={reset}
       title="Failed to load loan"
       description="Something went wrong. The loan may not exist."
-      backHref="/dashboard/loans"
+      backHref="/loans"
       backLabel="Back to loans"
     />
   )

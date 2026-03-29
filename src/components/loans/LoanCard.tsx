@@ -17,7 +17,7 @@ export function LoanCard({ loan }: LoanCardProps) {
   const dueDateLabel = isPaid ? 'Paid' : formatManila(loan.end_date, 'MMM d, yyyy')
 
   return (
-    <Link href={`/dashboard/loans/${loan.id}`} className="block">
+    <Link href={`/loans/${loan.id}`} className="block">
       <Card
         className={cn(
           'cursor-pointer transition-all hover:shadow-md hover:border-foreground/20',

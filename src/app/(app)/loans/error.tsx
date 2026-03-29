@@ -7,14 +7,14 @@ interface ErrorProps {
   reset: () => void
 }
 
-export default function BorrowersError({ error, reset }: ErrorProps) {
+export default function LoansError({ error, reset }: ErrorProps) {
   return (
     <RouteError
       error={error}
       reset={reset}
-      title="Failed to load borrowers"
-      description={error.message || 'An unexpected error occurred.'}
-      backHref="/dashboard"
+      title="Failed to load loans"
+      description="Something went wrong. Please try again."
+      backHref="/"
       backLabel="Go to dashboard"
     />
   )

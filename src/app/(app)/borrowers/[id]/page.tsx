@@ -36,7 +36,7 @@ export default async function BorrowerDetailPage({ params }: PageProps) {
     <div className="flex flex-col gap-6">
       {/* Breadcrumbs */}
       <div className="flex items-center gap-2 text-sm text-muted-foreground">
-        <Link href="/dashboard/borrowers" className="hover:text-foreground transition-colors">
+        <Link href="/borrowers" className="hover:text-foreground transition-colors">
           Borrowers
         </Link>
         <span>/</span>
@@ -48,7 +48,7 @@ export default async function BorrowerDetailPage({ params }: PageProps) {
         subtitle={`Borrower since ${formatManila(borrower.created_at, 'MMMM yyyy')}`}
         action={
           <Button asChild variant="outline" size="sm">
-            <Link href="/dashboard/borrowers">
+            <Link href="/borrowers">
               <ArrowLeft className="mr-1.5 h-4 w-4" />
               Back
             </Link>
@@ -143,7 +143,7 @@ export default async function BorrowerDetailPage({ params }: PageProps) {
           <div className="flex items-center justify-between">
             <h2 className="text-lg font-semibold">Loan History</h2>
             <Button asChild size="sm">
-              <Link href={`/dashboard/loans/new?borrowerId=${borrower.id}`}>Create Loan</Link>
+              <Link href={`/loans/new?borrowerId=${borrower.id}`}>Create Loan</Link>
             </Button>
           </div>
 
@@ -152,9 +152,7 @@ export default async function BorrowerDetailPage({ params }: PageProps) {
               <CardContent className="py-12 text-center">
                 <p className="text-muted-foreground">No loans yet for this borrower.</p>
                 <Button asChild className="mt-4" size="sm">
-                  <Link href={`/dashboard/loans/new?borrowerId=${borrower.id}`}>
-                    Create First Loan
-                  </Link>
+                  <Link href={`/loans/new?borrowerId=${borrower.id}`}>Create First Loan</Link>
                 </Button>
               </CardContent>
             </Card>
@@ -200,7 +198,7 @@ export default async function BorrowerDetailPage({ params }: PageProps) {
                       </TableCell>
                       <TableCell>
                         <Button asChild variant="ghost" size="sm">
-                          <Link href={`/dashboard/loans/${loan.id}`}>View</Link>
+                          <Link href={`/loans/${loan.id}`}>View</Link>
                         </Button>
                       </TableCell>
                     </TableRow>

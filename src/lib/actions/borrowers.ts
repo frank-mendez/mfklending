@@ -29,7 +29,7 @@ export async function createBorrower(
       return actionError('Failed to create borrower. Please try again.')
     }
 
-    revalidatePath('/dashboard/borrowers')
+    revalidatePath('/borrowers')
     return actionSuccess('Borrower created successfully.', { id: borrower.id })
   } catch (err) {
     console.error('[createBorrower]', err)
@@ -58,8 +58,8 @@ export async function updateBorrower(
       return actionError('Failed to update borrower. Please try again.')
     }
 
-    revalidatePath('/dashboard/borrowers')
-    revalidatePath(`/dashboard/borrowers/${id}`)
+    revalidatePath('/borrowers')
+    revalidatePath(`/borrowers/${id}`)
     return actionSuccess('Borrower updated successfully.')
   } catch (err) {
     console.error('[updateBorrower]', err)

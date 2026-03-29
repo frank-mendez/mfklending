@@ -76,7 +76,7 @@ export async function createLoan(
       return actionError('Failed to generate loan schedule. Please try again.')
     }
 
-    revalidatePath('/dashboard/loans')
+    revalidatePath('/loans')
     return actionSuccess('Loan created successfully.', { loanId: loan.id })
   } catch (err) {
     console.error('[createLoan]', err)
@@ -171,7 +171,7 @@ export async function recordPayment(
       }
     }
 
-    revalidatePath(`/dashboard/loans/${loan_id}`)
+    revalidatePath(`/loans/${loan_id}`)
     return actionSuccess('Payment recorded successfully.')
   } catch (err) {
     console.error('[recordPayment]', err)

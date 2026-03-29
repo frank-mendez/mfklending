@@ -52,7 +52,7 @@ export async function recordContribution(
     return actionError('Failed to record contribution. Please try again.')
   }
 
-  revalidatePath('/dashboard/stash')
+  revalidatePath('/stash')
   return actionSuccess('Contribution recorded successfully.')
 }
 
@@ -94,6 +94,6 @@ export async function recordDividend(
     return actionError('Failed to record dividends. Please try again.')
   }
 
-  revalidatePath('/dashboard/stash')
+  revalidatePath('/stash')
   return actionSuccess('Dividends recorded successfully.')
 }
