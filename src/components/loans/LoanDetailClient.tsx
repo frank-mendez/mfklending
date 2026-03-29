@@ -185,7 +185,8 @@ export function LoanDetailClient({ initialData }: LoanDetailClientProps) {
               <div className="flex justify-between">
                 <span>Periods Paid</span>
                 <span>
-                  {loan.payments.length} / {loan.loan_schedules.length}
+                  {loan.loan_schedules.filter((s) => s.status === 'paid').length} /{' '}
+                  {loan.loan_schedules.length}
                 </span>
               </div>
             </div>

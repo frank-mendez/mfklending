@@ -115,8 +115,6 @@ export function RecordPaymentDialog({
           {/* Hidden fields */}
           <input type="hidden" name="loan_id" value={loanId} />
           <input type="hidden" name="schedule_id" value={schedule.id} />
-          <input type="hidden" name="late_days" value={overdueDays} />
-          <input type="hidden" name="penalty_amount_pesos" value={toPesos(penalty)} />
           <input type="hidden" name="payment_type" value={paymentType} />
           <input type="hidden" name="remarks" value={remarks} />
 

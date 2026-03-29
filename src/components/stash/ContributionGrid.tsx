@@ -15,14 +15,14 @@ import type { ContributionsByMonth } from '@/lib/data/stash'
 import { formatPHP } from '@/lib/utils/currency'
 import { formatManila } from '@/lib/utils/date'
 
-const PARTNERS = ['Frank', 'Francis', 'Kim'] as const
 const DEFAULT_VISIBLE = 24
 
 interface ContributionGridProps {
   data: ContributionsByMonth[]
+  partners: string[]
 }
 
-export function ContributionGrid({ data }: ContributionGridProps) {
+export function ContributionGrid({ data, partners }: ContributionGridProps) {
   const [showAll, setShowAll] = useState(false)
 
   const visibleMonths = showAll ? data : data.slice(0, DEFAULT_VISIBLE)
@@ -35,7 +35,7 @@ export function ContributionGrid({ data }: ContributionGridProps) {
             <TableHeader>
               <TableRow>
                 <TableHead className="w-32">Month</TableHead>
-                {PARTNERS.map((name) => (
+                {partners.map((name) => (
                   <TableHead key={name} className="text-center">
                     {name}
                   </TableHead>
@@ -46,7 +46,10 @@ export function ContributionGrid({ data }: ContributionGridProps) {
             <TableBody>
               {visibleMonths.length === 0 ? (
                 <TableRow>
-                  <TableCell colSpan={5} className="py-8 text-center text-muted-foreground">
+                  <TableCell
+                    colSpan={partners.length + 2}
+                    className="py-8 text-center text-muted-foreground"
+                  >
                     No contributions recorded yet.
                   </TableCell>
                 </TableRow>
@@ -64,7 +67,7 @@ export function ContributionGrid({ data }: ContributionGridProps) {
                       <TableCell className="font-medium tabular-nums">
                         {formatManila(`${month}-01`, 'MMM yyyy')}
                       </TableCell>
-                      {PARTNERS.map((name) => {
+                      {partners.map((name) => {
                         const entry = partnerMap.get(name)
                         if (!entry) {
                           return (

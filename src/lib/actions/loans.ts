@@ -1,10 +1,10 @@
 'use server'
 
-import { addMonths, format } from 'date-fns'
 import { revalidatePath } from 'next/cache'
 import { z } from 'zod'
 import { type ActionState, actionError, actionSuccess } from '@/lib/actions'
 import { generateSchedule } from '@/lib/finance'
+import { calcDaysOverdue, calcLatePenalty } from '@/lib/finance/penalties'
 import { createClient } from '@/lib/supabase/server'
 import { todayManila } from '@/lib/utils/date'
 import { CreateLoanSchema, RecordPaymentSchema } from '@/lib/validations/loan.schema'
@@ -24,7 +24,17 @@ export async function createLoan(
     const { borrower_id, loan_type, principal_pesos, term_months, start_date, purpose } =
       result.data
     const principal = Math.round(principal_pesos * 100)
-    const end_date = format(addMonths(new Date(start_date), term_months), 'yyyy-MM-dd')
+
+    // Generate schedule first so end_date comes from the last period's dueDate,
+    // avoiding timezone-dependent new Date(YYYY-MM-DD) off-by-one issues.
+    const schedule = generateSchedule({
+      loanType: loan_type,
+      principal,
+      rate: 0.05,
+      termMonths: term_months,
+      startDate: start_date,
+    })
+    const end_date = schedule[schedule.length - 1]?.dueDate ?? start_date
 
     const supabase = await createClient()
 
@@ -47,14 +57,6 @@ export async function createLoan(
     if (loanError || !loan) {
       return actionError('Failed to create loan. Please try again.')
     }
-
-    const schedule = generateSchedule({
-      loanType: loan_type,
-      principal,
-      rate: 0.05,
-      termMonths: term_months,
-      startDate: start_date,
-    })
 
     const scheduleRows = schedule.map((entry) => ({
       loan_id: loan.id,
@@ -94,21 +96,32 @@ export async function recordPayment(
       return actionError('Please fix the errors below.', z.flattenError(result.error).fieldErrors)
     }
 
-    const {
-      loan_id,
-      schedule_id,
-      amount_paid_pesos,
-      penalty_amount_pesos,
-      paid_at,
-      payment_type,
-      remarks,
-      late_days,
-    } = result.data
+    const { loan_id, schedule_id, amount_paid_pesos, paid_at, payment_type, remarks } = result.data
 
     const amount_paid = Math.round(amount_paid_pesos * 100)
-    const penalty_amount = Math.round(penalty_amount_pesos * 100)
 
     const supabase = await createClient()
+
+    // Fetch schedule server-side to verify ownership and compute penalty authoritatively
+    const { data: scheduleRow, error: scheduleError } = await supabase
+      .from('loan_schedules')
+      .select('loan_id, due_date, interest_due')
+      .eq('id', schedule_id)
+      .single()
+
+    if (scheduleError || !scheduleRow) {
+      return actionError('Could not load schedule. Please try again.')
+    }
+
+    if (scheduleRow.loan_id !== loan_id) {
+      return actionError('Invalid payment data.')
+    }
+
+    const late_days = calcDaysOverdue(scheduleRow.due_date, paid_at)
+    const penalty_amount = calcLatePenalty({
+      daysLate: late_days,
+      monthlyInterest: scheduleRow.interest_due,
+    })
 
     const { error: paymentError } = await supabase.from('payments').insert({
       loan_id,

@@ -16,6 +16,7 @@ import { Textarea } from '@/components/ui/textarea'
 import type { ActionState } from '@/lib/actions'
 import { recordDividend } from '@/lib/actions/stash'
 import { queryKeys } from '@/lib/query-keys'
+import { currentMonthManila } from '@/lib/utils/date'
 
 const INITIAL_STATE: ActionState = { success: false, message: '' }
 
@@ -37,7 +38,7 @@ export function DividendFormDialog({ open, onOpenChange }: DividendFormDialogPro
     }
   }, [state.success])
 
-  const currentMonth = new Date().toISOString().slice(0, 7)
+  const currentMonth = currentMonthManila()
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>

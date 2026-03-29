@@ -22,8 +22,6 @@ import { formatPHP } from '@/lib/utils/currency'
 import { currentMonthManila, formatManila } from '@/lib/utils/date'
 import type { Partner } from '@/types'
 
-const PARTNERS = ['Frank', 'Francis', 'Kim'] as const
-
 interface StashClientProps {
   initialContributions: ContributionsByMonth[]
   initialDividends: DividendsByDate[]
@@ -78,7 +76,7 @@ export function StashClient({
 
       {/* Per-partner summary cards */}
       <div className="grid gap-4 sm:grid-cols-3">
-        {PARTNERS.map((name) => {
+        {partners.map(({ name }) => {
           const total = partnerTotals.get(name) ?? 0
           const thisMonthAmount = thisMonthMap.get(name)
           const paid = thisMonthAmount !== undefined
@@ -115,7 +113,7 @@ export function StashClient({
       {/* Contribution grid */}
       <section className="flex flex-col gap-3">
         <h2 className="text-lg font-semibold">Monthly Contributions</h2>
-        <ContributionGrid data={contributions} />
+        <ContributionGrid data={contributions} partners={partners.map((p) => p.name)} />
       </section>
 
       {/* Dividend history */}
@@ -129,7 +127,7 @@ export function StashClient({
               <TableHeader>
                 <TableRow>
                   <TableHead>Month</TableHead>
-                  {PARTNERS.map((name) => (
+                  {partners.map(({ name }) => (
                     <TableHead key={name} className="text-right">
                       {name}
                     </TableHead>
@@ -147,7 +145,7 @@ export function StashClient({
                       <TableCell className="font-medium">
                         {formatManila(distributed_at, 'MMM yyyy')}
                       </TableCell>
-                      {PARTNERS.map((name) => (
+                      {partners.map(({ name }) => (
                         <TableCell key={name} className="text-right tabular-nums">
                           {partnerDivMap.has(name) ? formatPHP(partnerDivMap.get(name) ?? 0) : '—'}
                         </TableCell>

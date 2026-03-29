@@ -26,9 +26,6 @@ export const RecordPaymentSchema = z.object({
   paid_at: z.string().min(1, 'Payment date is required'),
   payment_type: z.enum(['interest', 'principal', 'penalty', 'full']),
   remarks: z.string().optional(),
-  late_days: z.coerce.number().min(0).default(0),
-  /** In pesos */
-  penalty_amount_pesos: z.coerce.number().min(0).default(0),
 })
 
 export type RecordPaymentInput = z.infer<typeof RecordPaymentSchema>

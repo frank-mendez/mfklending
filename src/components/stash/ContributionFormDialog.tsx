@@ -23,6 +23,7 @@ import { Textarea } from '@/components/ui/textarea'
 import type { ActionState } from '@/lib/actions'
 import { recordContribution } from '@/lib/actions/stash'
 import { queryKeys } from '@/lib/query-keys'
+import { currentMonthManila } from '@/lib/utils/date'
 import type { Partner } from '@/types'
 
 const INITIAL_STATE: ActionState = { success: false, message: '' }
@@ -53,7 +54,7 @@ export function ContributionFormDialog({
   }, [state.success])
 
   // Current YYYY-MM for default value
-  const currentMonth = new Date().toISOString().slice(0, 7)
+  const currentMonth = currentMonthManila()
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
