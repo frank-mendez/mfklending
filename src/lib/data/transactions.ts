@@ -1,8 +1,8 @@
+import type { SupabaseClient } from '@supabase/supabase-js'
 import { createClient } from '@/lib/supabase/client'
 import type { BankTransaction } from '@/types'
 
-export async function getTransactions(): Promise<BankTransaction[]> {
-  const supabase = createClient()
+export async function queryTransactions(supabase: SupabaseClient): Promise<BankTransaction[]> {
   const { data, error } = await supabase
     .from('bank_transactions')
     .select('*')
@@ -14,4 +14,8 @@ export async function getTransactions(): Promise<BankTransaction[]> {
   }
 
   return (data ?? []) as BankTransaction[]
+}
+
+export async function getTransactions(): Promise<BankTransaction[]> {
+  return queryTransactions(createClient())
 }

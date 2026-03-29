@@ -1,139 +1,27 @@
 import { createClient } from '@/lib/supabase/client'
-import type { Dividend, Partner } from '@/types'
+import { queryContributions, queryDividends, queryPartners, queryStashSummary } from './stash-query'
 
-export interface ContributionEntry {
-  partner_name: string
-  amount: number
-  remarks: string | null
+export type {
+  ContributionEntry,
+  ContributionsByMonth,
+  DividendEntry,
+  DividendsByDate,
+  PartnerStashTotal,
+  StashSummary,
+} from './stash-query'
+
+export async function getContributions() {
+  return queryContributions(createClient())
 }
 
-export interface ContributionsByMonth {
-  month: string // YYYY-MM
-  contributions: ContributionEntry[]
+export async function getDividends() {
+  return queryDividends(createClient())
 }
 
-export async function getContributions(): Promise<ContributionsByMonth[]> {
-  const supabase = createClient()
-  const { data, error } = await supabase
-    .from('contributions')
-    .select('month, amount, remarks, partner:partners(name)')
-    .order('month', { ascending: false })
-
-  if (error) {
-    console.error('getContributions error:', error)
-    return []
-  }
-
-  const monthMap = new Map<string, ContributionEntry[]>()
-  for (const row of data ?? []) {
-    const existing = monthMap.get(row.month) ?? []
-    existing.push({
-      partner_name: (row.partner as unknown as { name: string } | null)?.name ?? '',
-      amount: row.amount,
-      remarks: row.remarks,
-    })
-    monthMap.set(row.month, existing)
-  }
-
-  return Array.from(monthMap.entries()).map(([month, contributions]) => ({
-    month,
-    contributions,
-  }))
+export async function getStashSummary() {
+  return queryStashSummary(createClient())
 }
 
-export interface DividendEntry extends Dividend {
-  partner_name: string
-}
-
-export interface DividendsByDate {
-  distributed_at: string
-  dividends: DividendEntry[]
-}
-
-export async function getDividends(): Promise<DividendsByDate[]> {
-  const supabase = createClient()
-  const { data, error } = await supabase
-    .from('dividends')
-    .select('*, partner:partners(name)')
-    .order('distributed_at', { ascending: false })
-
-  if (error) {
-    console.error('getDividends error:', error)
-    return []
-  }
-
-  const dateMap = new Map<string, DividendEntry[]>()
-  for (const row of data ?? []) {
-    const partnerName = (row.partner as unknown as { name: string } | null)?.name ?? ''
-    // eslint-disable-next-line @typescript-eslint/no-unused-vars
-    const { partner: _partner, ...dividend } = row
-    const entry: DividendEntry = { ...(dividend as Dividend), partner_name: partnerName }
-    const existing = dateMap.get(row.distributed_at) ?? []
-    existing.push(entry)
-    dateMap.set(row.distributed_at, existing)
-  }
-
-  return Array.from(dateMap.entries()).map(([distributed_at, dividends]) => ({
-    distributed_at,
-    dividends,
-  }))
-}
-
-export interface PartnerStashTotal {
-  partner_id: string
-  partner_name: string
-  total: number
-}
-
-export interface StashSummary {
-  partners: PartnerStashTotal[]
-  grandTotal: number
-}
-
-export async function getStashSummary(): Promise<StashSummary> {
-  const supabase = createClient()
-  const { data, error } = await supabase
-    .from('contributions')
-    .select('partner_id, amount, partner:partners(name)')
-
-  if (error) {
-    console.error('getStashSummary error:', error)
-    return { partners: [], grandTotal: 0 }
-  }
-
-  const partnerMap = new Map<string, { name: string; total: number }>()
-  let grandTotal = 0
-
-  for (const row of data ?? []) {
-    const partnerName = (row.partner as unknown as { name: string } | null)?.name ?? ''
-    const existing = partnerMap.get(row.partner_id) ?? { name: partnerName, total: 0 }
-    existing.total += row.amount
-    partnerMap.set(row.partner_id, existing)
-    grandTotal += row.amount
-  }
-
-  const partners: PartnerStashTotal[] = Array.from(partnerMap.entries()).map(
-    ([partner_id, { name, total }]) => ({
-      partner_id,
-      partner_name: name,
-      total,
-    })
-  )
-
-  return { partners, grandTotal }
-}
-
-export async function getPartners(): Promise<Partner[]> {
-  const supabase = createClient()
-  const { data, error } = await supabase
-    .from('partners')
-    .select('*')
-    .order('name', { ascending: true })
-
-  if (error) {
-    console.error('getPartners error:', error)
-    return []
-  }
-
-  return (data ?? []) as Partner[]
+export async function getPartners() {
+  return queryPartners(createClient())
 }
