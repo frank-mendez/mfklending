@@ -22,14 +22,7 @@ const CONTRIBUTION_DATA: ContributionRow[] = [
   { month: "MAY '23", frank: null, francis: '₱4,000.00', kim: '₱2,000.00' },
   { month: "JUN '23", frank: null, francis: '₱2,000.00', kim: '₱4,000.00' },
   { month: "JUL '23", frank: null, francis: '₱3,000.00', kim: '₱3,000.00' },
-  // AUG '23: Frank has special catch-up payment handled separately below
-  {
-    month: "AUG '23",
-    frank: null,
-    francis: '₱3,000.00',
-    kim: '₱3,000.00',
-    remarks: 'FRANK PAID ₱8,000.00 (FROM MISSED PAYMENTS)',
-  },
+  { month: "AUG '23", frank: null, francis: '₱3,000.00', kim: '₱3,000.00' },
   { month: "SEPT '23", frank: '₱6,000.00', francis: null, kim: null },
   { month: "OCT '23", frank: '₱6,000.00', francis: null, kim: null },
   { month: "NOV '23", frank: '₱2,000.00', francis: '₱2,000.00', kim: '₱2,000.00' },
@@ -63,10 +56,8 @@ const CONTRIBUTION_DATA: ContributionRow[] = [
   { month: "MAR '26", frank: '₱3,000.00', francis: '₱3,000.00', kim: '₱3,000.00' },
 ]
 
-// Frank contributed ₱119,000 — Sep/Oct '23 entries are ₱6,000 each (he covered all 3 partners
-// those months while Francis and Kim show null). Francis and Kim are the standard ₱111,000.
 const EXPECTED_TOTALS: Record<string, number> = {
-  frank: 11900000, // ₱119,000.00
+  frank: 11100000, // ₱111,000.00
   francis: 11100000, // ₱111,000.00
   kim: 11100000, // ₱111,000.00
 }
@@ -121,39 +112,6 @@ export async function seedContributions(partnerIds: Record<string, string>): Pro
 
       insertedCount++
     }
-  }
-
-  // Special case: Frank's AUG '23 catch-up lump-sum payment
-  const aug23ISO = parseMonth("AUG '23")
-  const frankId = partnerIds.frank
-  const frankCatchUpRemarks = 'FRANK PAID ₱8,000.00 (FROM MISSED PAYMENTS)'
-  const frankCatchUpAmount = parsePHP('₱8,000.00')
-
-  // Idempotency: check by (partner_id, month) to align with DB UNIQUE constraint
-  const { data: existingCatchUp, error: catchUpCheckError } = await supabase
-    .from('contributions')
-    .select('id')
-    .eq('partner_id', frankId)
-    .eq('month', aug23ISO)
-    .maybeSingle()
-
-  if (catchUpCheckError) {
-    throw new Error(`Error checking Frank AUG '23 catch-up: ${catchUpCheckError.message}`)
-  }
-
-  if (!existingCatchUp) {
-    const { error: catchUpInsertError } = await supabase.from('contributions').insert({
-      partner_id: frankId,
-      amount: frankCatchUpAmount,
-      month: aug23ISO,
-      remarks: frankCatchUpRemarks,
-    })
-
-    if (catchUpInsertError) {
-      throw new Error(`Error inserting Frank AUG '23 catch-up: ${catchUpInsertError.message}`)
-    }
-
-    insertedCount++
   }
 
   // Verification: check total per partner
