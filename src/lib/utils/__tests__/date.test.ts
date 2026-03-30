@@ -1,6 +1,6 @@
 /// <reference types="vitest/globals" />
 
-import { daysOverdue, formatManila, isOverdue, todayManila } from '../date'
+import { currentMonthManila, daysOverdue, formatManila, isOverdue, todayManila } from '../date'
 
 describe('formatManila', () => {
   it('formats a UTC date string in Manila time', () => {
@@ -43,6 +43,22 @@ describe('todayManila', () => {
     vi.useFakeTimers()
     vi.setSystemTime(new Date('2026-03-28T20:00:00Z'))
     expect(todayManila()).toBe('2026-03-29')
+    vi.useRealTimers()
+  })
+})
+
+describe('currentMonthManila', () => {
+  it('returns a valid YYYY-MM string', () => {
+    const result = currentMonthManila()
+    expect(result).toMatch(/^\d{4}-\d{2}$/)
+  })
+
+  it('returns the Manila month for a frozen UTC instant crossing midnight', () => {
+    // 2026-03-28T20:00:00Z = 2026-03-29T04:00:00+08:00 → March 2026 in Manila is already April... wait no
+    // 2026-03-31T16:00:00Z = 2026-04-01T00:00:00+08:00 → April in Manila, still March UTC
+    vi.useFakeTimers()
+    vi.setSystemTime(new Date('2026-03-31T16:00:00Z'))
+    expect(currentMonthManila()).toBe('2026-04')
     vi.useRealTimers()
   })
 })
