@@ -30,12 +30,24 @@ A full-stack lending management system for **MFK Lending Corporation**, a small 
   - Total at end of term: ₱34,500 (₱30,000 principal + ₱4,500 interest)
 - Late payment penalty: **1% per day** on accrued interest
 
-#### 2. Diminishing Balance Loan
+#### 2. Diminishing Balance Loan (Standard)
 
 - Monthly payment reduces outstanding principal
 - Interest is recalculated on the **remaining balance** each month
 - Two known borrowers: Al Huber Allere (AHA) and Vanessa Zambas (VZ)
 - Payment schedule is tracked separately per borrower
+
+#### 3. Hybrid Diminishing Loan
+
+- Starts as a flat interest loan — borrower pays interest only each month
+- Principal is returned in **irregular partial chunks** at the borrower's discretion
+- Interest is recalculated on the **remaining balance** after each partial return
+- No fixed amortization schedule — principal returns are ad hoc
+- Example: Gesan — ₱200,000 loan, partial returns of ₱5,000 at a time
+- Identified in the sheet by multiple `----PRINCIPAL RETURNED PHP {amount} {date}----` markers
+- Outstanding balance = original principal − sum of all partial returns
+- Status = active if outstanding balance > 0, paid if outstanding balance = 0
+- `loan_type` stored as `hybrid_diminishing` in the database
 
 ### Interest Rate
 
@@ -213,7 +225,7 @@ bank_name, account_name, account_number, created_at
 ### `loans`
 
 ```sql
-id, borrower_id, loan_type (flat_interest | diminishing),
+id, borrower_id, loan_type (flat_interest | diminishing | hybrid_diminishing),
 principal, interest_rate (default 0.05), term_months,
 start_date, end_date, disbursed_at,
 status (active | paid | defaulted),
@@ -236,6 +248,15 @@ id, loan_id, schedule_id (nullable),
 amount_paid, paid_at, payment_type (interest | principal | penalty | full),
 late_days, penalty_amount, remarks, created_at
 ```
+
+### `principal_returns`
+
+```sql
+id, loan_id, amount, returned_at, remarks, created_at
+```
+
+Tracks each partial principal return for hybrid_diminishing loans.
+Outstanding balance = loans.principal - SUM(principal_returns.amount) for that loan.
 
 ### `bank_transactions`
 
@@ -381,7 +402,7 @@ totalRepayment = principal + monthlyInterest * termMonths;
 penalty = daysLate * 0.01 * monthlyInterest;
 ```
 
-### Diminishing Balance
+### Diminishing Balance (Standard)
 
 ```typescript
 // Each month:
@@ -392,6 +413,22 @@ remainingBalance = remainingBalance - principalPayment;
 // Monthly payment (standard amortization formula)
 monthlyPayment = (principal * ((r * (1 + r)) ^ n)) / ((1 + r) ^ (n - 1));
 // where r = monthly rate, n = number of periods
+```
+
+### Hybrid Diminishing (Irregular Principal Returns)
+
+```typescript
+// Interest each month is on the current outstanding balance
+interest = outstandingBalance * interestRate;
+
+// When a partial return is recorded:
+outstandingBalance = outstandingBalance - partialReturnAmount;
+
+// Outstanding balance at any point:
+outstandingBalance = originalPrincipal - SUM(allPrincipalReturns);
+
+// Loan is fully paid when:
+outstandingBalance === 0;
 ```
 
 ---
@@ -475,6 +512,108 @@ Existing data from the Google Sheet (CSV export) needs to be seeded into Supabas
 Create a seed script at `scripts/seed.ts` that reads the CSV and inserts records.
 
 ---
+
+## CSV Import Feature
+
+During the transition from Google Sheets to the system, the sheet remains the
+**source of truth**. Partners import data from CSV exports on demand. The DB is
+a verified replica of the sheet until partners are confident enough to fully cut over.
+
+Only **automated reminders** run live against the DB during transition.
+
+### Import page
+
+Location: `/dashboard/import` (visible to all partners during transition)
+
+Supported import types — one per sheet tab:
+| Import Type | Source Tab | Target Tables |
+|---|---|---|
+| Stash | Stash tab | `contributions` |
+| Lending | Lending tab | `borrowers`, `loans`, `loan_schedules`, `payments`, `principal_returns` |
+| Diminishing | AHA / VZ tabs | `borrowers`, `loans`, `loan_schedules`, `payments` |
+| Summary | Summary tab | `bank_transactions`, `dividends` |
+
+### Import workflow
+
+1. Partner selects import type
+2. Uploads CSV file
+3. System parses and validates — shows preview table
+4. Validation errors shown inline (unknown borrower, duplicate month, bad amount)
+5. Partner reviews and confirms
+6. Data inserted idempotently — re-importing same data skips duplicates
+7. Import log entry created with timestamp, rows imported, rows skipped
+
+### Lending tab parser rules
+
+**Loan block detection:**
+
+- Each loan block starts with a borrower name row (standalone text, no amount)
+- Block ends when the next borrower name row is detected
+
+**Row types within a block:**
+
+```
+[MONTH] [AMOUNT]                              → monthly interest payment
+----PRINCIPAL RETURNED {date}----             → full principal return (flat loan)
+----PRINCIPAL RETURNED PHP {amount} {date}--- → partial principal return (hybrid)
+```
+
+**Loan type classification:**
+
+```
+One PRINCIPAL RETURNED row, no amount   → flat_interest
+One PRINCIPAL RETURNED row, amount = principal  → flat_interest (paid)
+Multiple PRINCIPAL RETURNED rows        → hybrid_diminishing
+No PRINCIPAL RETURNED row              → flat_interest (still active)
+```
+
+**Status derivation (CSV — no color available):**
+
+```
+outstandingBalance = principal - SUM(all partial return amounts)
+outstandingBalance === 0 → status: paid
+outstandingBalance  > 0 → status: active
+```
+
+**Interest calculation for hybrid_diminishing:**
+
+```
+Before first partial return:  interest = originalPrincipal × rate
+After each partial return:    remainingBalance -= returnAmount
+                              interest = remainingBalance × rate
+```
+
+**PRINCIPAL RETURNED regex patterns:**
+
+```typescript
+// Full return (no amount):
+/^-+PRINCIPAL RETURNED\s+(\d{2}\/\d{2}\/\d{2,4})-+$/i
+
+// Partial return (with amount):
+/^-+PRINCIPAL RETURNED\s+PHP\s+([\d,]+(?:\.\d{2})?)\s+(\d{2}\/\d{2}\/\d{2,4})-+$/i
+```
+
+### Transition verification screen
+
+Location: `/dashboard/import/verify`
+
+Compares DB totals against known expected values:
+
+- Total stash = ₱333,000 ✓/✗
+- Grand total contributions per partner = ₱111,000 each ✓/✗
+- Active loan count vs expected ✓/✗
+- Per-borrower outstanding balance ✓/✗
+- Any loans with unmatched interest payment counts ✓/✗
+
+Partners must sign off on verification before reminders are enabled.
+
+### Reminders toggle
+
+Each loan has a `reminders_enabled` boolean field.
+Reminders only fire for loans where `reminders_enabled = true`.
+Partners enable reminders per loan after verifying the loan data is correct.
+
+## Contract Template Fields
 
 ## Contract Template Fields
 

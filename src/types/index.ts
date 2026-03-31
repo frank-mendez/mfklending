@@ -1,6 +1,6 @@
 // ─── Enum-style Literal Types ────────────────────────────────────────────────
 
-export type LoanType = 'flat_interest' | 'diminishing'
+export type LoanType = 'flat_interest' | 'diminishing' | 'hybrid_diminishing'
 
 export type LoanStatus = 'active' | 'paid' | 'defaulted' | 'overdue'
 
@@ -11,6 +11,9 @@ export type PaymentType = 'interest' | 'principal' | 'penalty' | 'full'
 export type BankTransactionType = 'credit' | 'debit'
 
 export type BankTransactionSource = 'gotyme_import' | 'manual'
+
+export type ImportType = 'stash' | 'lending' | 'diminishing' | 'summary'
+export type ImportStatus = 'pending' | 'completed' | 'failed'
 
 // ─── Core Domain Interfaces ───────────────────────────────────────────────────
 
@@ -70,6 +73,9 @@ export interface Loan {
   status: LoanStatus
   signwell_document_id: string | null
   contract_url: string | null
+  reminders_enabled: boolean
+  imported_at: string | null
+  import_source: string | null
   created_at: string
   updated_at: string
   borrower?: Borrower
@@ -146,4 +152,36 @@ export type LoanFull = Loan & {
   borrower: Borrower
   loan_schedules: LoanSchedule[]
   payments: Payment[]
+}
+
+export interface PrincipalReturn {
+  id: string
+  loan_id: string
+  /** Stored in centavos (integer) */
+  amount: number
+  returned_at: string // YYYY-MM-DD
+  remarks: string | null
+  created_at: string
+}
+
+export interface ImportLog {
+  id: string
+  import_type: ImportType
+  status: ImportStatus
+  filename: string
+  rows_parsed: number
+  rows_imported: number
+  rows_skipped: number
+  errors: Array<{ row: number; message: string }> | null
+  imported_by: string | null
+  created_at: string
+  completed_at: string | null
+}
+
+// ─── Import / Composite Types ─────────────────────────────────────────────────
+
+export type LoanWithReturns = Loan & {
+  principal_returns: PrincipalReturn[]
+  /** Computed: principal - SUM(principal_returns.amount) */
+  outstanding_balance: number
 }

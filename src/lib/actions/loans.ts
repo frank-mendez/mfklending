@@ -178,3 +178,102 @@ export async function recordPayment(
     return actionError('An unexpected error occurred. Please try again.')
   }
 }
+
+// ─── toggleReminders ──────────────────────────────────────────────────────────
+
+export async function toggleReminders(loanId: string, enabled: boolean): Promise<ActionState> {
+  const supabase = await createClient()
+
+  if (enabled) {
+    // Verify there is at least one pending schedule entry before enabling
+    const { count } = await supabase
+      .from('loan_schedules')
+      .select('id', { count: 'exact', head: true })
+      .eq('loan_id', loanId)
+      .eq('status', 'pending')
+
+    if (!count || count === 0) {
+      return actionError('No upcoming payments to remind for. Add a schedule entry first.')
+    }
+  }
+
+  const { error } = await supabase
+    .from('loans')
+    .update({ reminders_enabled: enabled })
+    .eq('id', loanId)
+
+  if (error) {
+    console.error('[toggleReminders]', error)
+    return actionError('Could not update reminders setting.')
+  }
+
+  revalidatePath('/import/verify')
+  revalidatePath(`/loans/${loanId}`)
+
+  return actionSuccess(enabled ? 'Reminders enabled.' : 'Reminders disabled.')
+}
+
+// ─── recordPrincipalReturn ────────────────────────────────────────────────────
+
+export async function recordPrincipalReturn(
+  _prevState: ActionState,
+  formData: FormData
+): Promise<ActionState> {
+  const loanId = formData.get('loan_id') as string
+  const amountPesos = parseFloat(formData.get('amount_pesos') as string)
+  const returnedAt = formData.get('returned_at') as string
+  const remarks = (formData.get('remarks') as string) || null
+
+  if (!loanId || Number.isNaN(amountPesos) || amountPesos <= 0) {
+    return actionError('Amount must be a positive number.')
+  }
+  if (!returnedAt) {
+    return actionError('Return date is required.')
+  }
+
+  const amountCentavos = Math.round(amountPesos * 100)
+  const supabase = await createClient()
+
+  // Verify amount does not exceed outstanding balance
+  const { data: loan } = await supabase
+    .from('loans')
+    .select('principal, principal_returns(amount)')
+    .eq('id', loanId)
+    .single()
+
+  if (!loan) return actionError('Loan not found.')
+
+  type ReturnRow = { amount: number }
+  const returned = (loan.principal_returns as ReturnRow[]).reduce(
+    (s: number, r: ReturnRow) => s + r.amount,
+    0
+  )
+  const outstanding = Math.max(0, loan.principal - returned)
+
+  if (amountCentavos > outstanding) {
+    return actionError(`Amount exceeds outstanding balance of ₱${(outstanding / 100).toFixed(2)}.`)
+  }
+
+  const { error: insertErr } = await supabase.from('principal_returns').insert({
+    loan_id: loanId,
+    amount: amountCentavos,
+    returned_at: returnedAt,
+    remarks,
+  })
+
+  if (insertErr) {
+    console.error('[recordPrincipalReturn]', insertErr)
+    return actionError('Could not record the principal return.')
+  }
+
+  // If fully paid, update loan status
+  const newOutstanding = outstanding - amountCentavos
+  if (newOutstanding === 0) {
+    await supabase.from('loans').update({ status: 'paid' }).eq('id', loanId)
+  }
+
+  revalidatePath(`/loans/${loanId}`)
+  revalidatePath('/import/verify')
+
+  return actionSuccess('Principal return recorded.')
+}

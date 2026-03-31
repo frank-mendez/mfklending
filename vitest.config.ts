@@ -29,6 +29,7 @@ export default defineConfig({
         'src/lib/actions/**',
         'src/lib/data/**',
         'src/lib/supabase/**',
+        'src/lib/import/import.service.ts',
         'src/lib/signwell/**',
         'src/lib/notifications/**',
         'src/lib/contracts/**',
