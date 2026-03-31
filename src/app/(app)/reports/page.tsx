@@ -87,7 +87,7 @@ export default async function ReportsPage() {
                     {formatPHP(summary.total_stash)}
                   </TableCell>
                   <TableCell className="tabular-nums">
-                    {formatPHP(summary.total_loaned_out)}
+                    {formatPHP(summary.total_outstanding_balance)}
                   </TableCell>
                   <TableCell className="tabular-nums text-green-600">
                     {formatPHP(summary.total_collected_interest)}
