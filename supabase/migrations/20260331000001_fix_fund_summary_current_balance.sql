@@ -1,3 +1,4 @@
+-- Recreate fund_summary view with current_balance column
 DROP VIEW IF EXISTS fund_summary;
 
 CREATE VIEW fund_summary AS

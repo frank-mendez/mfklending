@@ -130,15 +130,17 @@ export interface BankTransaction {
 export interface FundSummary {
   /** Stored in centavos (integer) */
   total_stash: number
-  /** Stored in centavos (integer) */
-  total_loaned_out: number
+  /** Original principal of active/overdue loans in centavos */
+  total_principal_loaned: number
+  /** Outstanding balance (principal minus returns) of active/overdue loans in centavos */
+  total_outstanding_balance: number
   /** Stored in centavos (integer) */
   total_collected_interest: number
   /** Stored in centavos (integer) */
   total_penalties: number
   /** Stored in centavos (integer) */
   total_dividends_paid: number
-  /** Stored in centavos (integer) */
+  /** stash + interest + penalties − dividends − outstanding loans, in centavos */
   current_balance: number
 }
 
