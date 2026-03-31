@@ -16,7 +16,7 @@ import type { LoanScheduleEntry, RecordedPayment } from './types'
 /** Parameters for generating a loan schedule regardless of loan type */
 export interface GenerateScheduleParams {
   /** Loan type — determines which amortization method is used */
-  loanType: 'flat_interest' | 'diminishing'
+  loanType: 'flat_interest' | 'diminishing' | 'hybrid_diminishing'
   /** Loan principal in centavos */
   principal: number
   /** Monthly interest rate as a decimal, e.g. 0.05 for 5% */
@@ -52,20 +52,26 @@ export interface OverdueEntry extends LoanScheduleEntry {
 }
 
 /**
- * Generates a loan payment schedule for either a flat interest or diminishing
- * balance loan. This is the single entry point for schedule generation.
+ * Generates a loan payment schedule for flat interest, diminishing balance,
+ * or hybrid diminishing loans. This is the single entry point for schedule generation.
+ *
+ * For hybrid_diminishing loans, the schedule is generated identically to flat_interest:
+ * borrower pays interest only each month, with principal due at the final period.
+ * Actual partial principal returns are tracked separately in the principal_returns table
+ * and do not affect the schedule structure.
  *
  * @param params - Schedule parameters including loanType (see GenerateScheduleParams)
  * @returns Array of LoanScheduleEntry, one per payment period
- * @throws Error if loanType is not 'flat_interest' or 'diminishing'
+ * @throws Error if loanType is not 'flat_interest', 'diminishing', or 'hybrid_diminishing'
  *
  * @example
  * generateSchedule({ loanType: 'flat_interest', principal: 3000000, rate: 0.05, termMonths: 3, startDate: '2026-03-25' })
+ * generateSchedule({ loanType: 'hybrid_diminishing', principal: 20000000, rate: 0.05, termMonths: 6, startDate: '2026-01-01' })
  */
 export function generateSchedule(params: GenerateScheduleParams): LoanScheduleEntry[] {
   const { loanType, principal, rate, termMonths, startDate } = params
 
-  if (loanType === 'flat_interest') {
+  if (loanType === 'flat_interest' || loanType === 'hybrid_diminishing') {
     return calcFlatSchedule({ principal, rate, termMonths, startDate })
   }
 
@@ -73,7 +79,9 @@ export function generateSchedule(params: GenerateScheduleParams): LoanScheduleEn
     return calcDiminishingSchedule({ principal, rate, termMonths, startDate })
   }
 
-  throw new Error(`Unknown loan type: "${loanType}". Expected 'flat_interest' or 'diminishing'.`)
+  throw new Error(
+    `Unknown loan type: "${loanType}". Expected 'flat_interest', 'diminishing', or 'hybrid_diminishing'.`
+  )
 }
 
 /**
@@ -159,4 +167,48 @@ export function isLoanFullyPaid(
   payments: RecordedPayment[]
 ): boolean {
   return payments.length >= schedule.length
+}
+
+/**
+ * Computes the outstanding principal balance for a hybrid_diminishing loan.
+ *
+ * Outstanding balance = original principal − sum of all recorded partial returns.
+ * Never returns a negative value (floored at 0).
+ *
+ * @param principal - Original loan principal in centavos
+ * @param returns - Array of principal return records (amount in centavos)
+ * @returns Outstanding balance in centavos
+ *
+ * @example
+ * calcOutstandingBalance(20000000, [])
+ * // → 20000000  (no returns yet — full principal outstanding)
+ *
+ * calcOutstandingBalance(20000000, [{ amount: 500000 }, { amount: 500000 }])
+ * // → 19000000  (₱190,000 remaining)
+ */
+export function calcOutstandingBalance(
+  principal: number,
+  returns: Array<{ amount: number }>
+): number {
+  const totalReturned = returns.reduce((sum, r) => sum + r.amount, 0)
+  return Math.max(0, principal - totalReturned)
+}
+
+/**
+ * Computes the monthly interest payment on the current outstanding balance.
+ *
+ * Used for hybrid_diminishing loans where the interest reduces as partial
+ * principal returns are recorded.
+ *
+ * @param outstandingBalance - Current outstanding principal in centavos
+ * @param rate - Monthly interest rate as a decimal (e.g. 0.05 for 5%)
+ * @returns Monthly interest amount in centavos (rounded to nearest centavo)
+ *
+ * @example
+ * calcInterestOnBalance(20000000, 0.05)  // → 1000000  (₱10,000)
+ * calcInterestOnBalance(19500000, 0.05)  // → 975000   (₱9,750)
+ * calcInterestOnBalance(0, 0.05)         // → 0
+ */
+export function calcInterestOnBalance(outstandingBalance: number, rate: number): number {
+  return Math.round(outstandingBalance * rate)
 }

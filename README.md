@@ -155,7 +155,7 @@ Late penalty      = Days late × 1% × Monthly interest
 
 _Example: ₱30,000 loan over 3 months → ₱1,500/month interest → ₱34,500 total_
 
-### Diminishing Balance
+### Diminishing Balance (Standard)
 
 Monthly payments reduce the outstanding principal. Interest is recalculated on the remaining balance each month using standard amortization.
 
@@ -163,20 +163,33 @@ Monthly payments reduce the outstanding principal. Interest is recalculated on t
 Monthly payment = P × [r(1+r)ⁿ] / [(1+r)ⁿ − 1]
 ```
 
+### Hybrid Diminishing (Irregular Principal Returns)
+
+Starts as a flat interest loan. Borrower returns principal in irregular partial chunks at their own discretion. Interest recalculates on the remaining balance after each return.
+
+```
+Interest each month   = Outstanding balance × 5%
+After partial return  = Outstanding balance − return amount
+Fully paid when       = Outstanding balance = 0
+```
+
+_Example: Gesan — ₱200,000 loan, returning ₱5,000 at a time. Each return reduces the monthly interest bill._
+
 ---
 
 ## Database Schema
 
-| Table               | Description                                            |
-| ------------------- | ------------------------------------------------------ |
-| `partners`          | Frank, Francis, Kim — the three co-op members          |
-| `contributions`     | Monthly stash payments per partner                     |
-| `dividends`         | Yearly profit distributions per partner                |
-| `borrowers`         | Loan applicant profiles and bank details               |
-| `loans`             | Loan records with type, principal, term, and status    |
-| `loan_schedules`    | Per-period payment schedule (principal + interest due) |
-| `payments`          | Recorded payments against loan schedules               |
-| `bank_transactions` | GoTyme Bank statement entries (imported or manual)     |
+| Table               | Description                                                   |
+| ------------------- | ------------------------------------------------------------- |
+| `partners`          | Frank, Francis, Kim — the three co-op members                 |
+| `contributions`     | Monthly stash payments per partner                            |
+| `dividends`         | Yearly profit distributions per partner                       |
+| `borrowers`         | Loan applicant profiles and bank details                      |
+| `loans`             | Loan records with type, principal, term, and status           |
+| `loan_schedules`    | Per-period payment schedule (principal + interest due)        |
+| `payments`          | Recorded payments against loan schedules                      |
+| `principal_returns` | Partial principal return records for hybrid diminishing loans |
+| `bank_transactions` | GoTyme Bank statement entries (imported or manual)            |
 
 ---
 
@@ -202,6 +215,21 @@ When a new loan is created:
 4. The completed contract is stored in Supabase Storage
 
 ---
+
+## CSV Import & Transition
+
+During transition from Google Sheets to the system, the **sheet remains the source of truth**. Partners import data via CSV exports on demand. Only automated reminders run live against the DB during this period.
+
+The import page (`/import`) supports:
+
+- **Stash** — monthly contributions from all partners
+- **Lending** — full loan history including hybrid diminishing loans
+- **Diminishing** — AHA and VZ standard diminishing loans
+- **Summary** — bank interest and dividend distributions
+
+Each import shows a **preview table** before committing. Re-importing is safe — duplicates are skipped. A **verification screen** lets partners confirm DB totals match the sheet before enabling reminders.
+
+Reminders are toggled per loan (`reminders_enabled` flag) so partners can enable them loan by loan as they verify each record.
 
 ## Data Migration
 

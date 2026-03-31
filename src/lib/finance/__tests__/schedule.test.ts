@@ -2,6 +2,8 @@
 
 import { calcFlatTotalInterest } from '../flat-interest'
 import {
+  calcInterestOnBalance,
+  calcOutstandingBalance,
   generateSchedule,
   getOverdueEntries,
   isLoanFullyPaid,
@@ -207,5 +209,73 @@ describe('isLoanFullyPaid', () => {
     const oneMonthSchedule = generateSchedule({ ...flatParams, termMonths: 1 })
     const payments = [{ amountPaid: 3150000, paymentType: 'full' as const }]
     expect(isLoanFullyPaid(oneMonthSchedule, payments)).toBe(true)
+  })
+})
+
+describe('generateSchedule — hybrid_diminishing', () => {
+  const hybridParams = {
+    loanType: 'hybrid_diminishing' as const,
+    principal: 20000000, // ₱200,000
+    rate: 0.05,
+    termMonths: 6,
+    startDate: '2026-01-01',
+  }
+
+  it('returns a flat schedule (interest-only each period)', () => {
+    const schedule = generateSchedule(hybridParams)
+    expect(schedule).toHaveLength(6)
+    // All periods: interest only, no principal due until final
+    for (const entry of schedule.slice(0, 5)) {
+      expect(entry.interestDue).toBe(1000000) // ₱200,000 × 5% = ₱10,000
+    }
+  })
+
+  it('produces the same structure as flat_interest for equal params', () => {
+    const flatSchedule = generateSchedule({ ...hybridParams, loanType: 'flat_interest' })
+    const hybridSchedule = generateSchedule(hybridParams)
+    expect(hybridSchedule).toEqual(flatSchedule)
+  })
+})
+
+describe('calcOutstandingBalance', () => {
+  it('returns full principal when there are no returns', () => {
+    expect(calcOutstandingBalance(20000000, [])).toBe(20000000)
+  })
+
+  it('subtracts partial returns from the principal', () => {
+    const returns = [{ amount: 500000 }, { amount: 500000 }, { amount: 500000 }]
+    // ₱200,000 − 3×₱5,000 = ₱185,000
+    expect(calcOutstandingBalance(20000000, returns)).toBe(18500000)
+  })
+
+  it('returns 0 when returns exactly equal the principal', () => {
+    const returns = [{ amount: 10000000 }, { amount: 10000000 }]
+    expect(calcOutstandingBalance(20000000, returns)).toBe(0)
+  })
+
+  it('floors at 0 — never returns negative', () => {
+    const returns = [{ amount: 25000000 }] // return > principal
+    expect(calcOutstandingBalance(20000000, returns)).toBe(0)
+  })
+})
+
+describe('calcInterestOnBalance', () => {
+  it('computes 5% of ₱200,000 → ₱10,000', () => {
+    expect(calcInterestOnBalance(20000000, 0.05)).toBe(1000000)
+  })
+
+  it('computes interest after a ₱5,000 return: ₱195,000 × 5% = ₱9,750', () => {
+    expect(calcInterestOnBalance(19500000, 0.05)).toBe(975000)
+  })
+
+  it('returns 0 when balance is 0', () => {
+    expect(calcInterestOnBalance(0, 0.05)).toBe(0)
+  })
+
+  it('rounds to the nearest centavo', () => {
+    // ₱1 outstanding at 5% = 0.05 centavos → rounds to 0
+    expect(calcInterestOnBalance(1, 0.05)).toBe(0)
+    // ₱10 outstanding at 5% = 0.5 centavos → rounds to 1
+    expect(calcInterestOnBalance(10, 0.05)).toBe(1)
   })
 })
