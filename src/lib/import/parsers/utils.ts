@@ -12,11 +12,11 @@ export function parsePHPAmount(value: string): number {
   if (!value || typeof value !== 'string') return 0
   // Strip currency symbols, commas, whitespace
   const cleaned = value
-    .replace(/[₱\s,]/g, '')
+    .replaceAll(/[₱\s,]/g, '')
     .replace(/^PHP/i, '')
     .trim()
-  const num = parseFloat(cleaned)
-  if (isNaN(num)) return 0
+  const num = Number.parseFloat(cleaned)
+  if (Number.isNaN(num)) return 0
   return Math.round(num * 100)
 }
 
@@ -29,28 +29,31 @@ export function parsePHPAmount(value: string): number {
  *   "MAR '26"  → "2026-03-01"
  * Returns null if unparseable. Never throws.
  */
+const SLASH_DATE_RE = /^(\d{1,2})\/(\d{1,2})\/(\d{2,4})$/
+const MONTH_YEAR_RE = /^([A-Za-z]+)\s+'(\d{2})$/
+
 export function parseSheetDate(value: string): string | null {
   if (!value || typeof value !== 'string') return null
   const trimmed = value.trim()
 
   // MM/DD/YY or MM/DD/YYYY
-  const slashMatch = trimmed.match(/^(\d{1,2})\/(\d{1,2})\/(\d{2,4})$/)
+  const slashMatch = SLASH_DATE_RE.exec(trimmed)
   if (slashMatch) {
     const month = slashMatch[1].padStart(2, '0')
     const day = slashMatch[2].padStart(2, '0')
     let year = slashMatch[3]
     if (year.length === 2) {
-      year = parseInt(year) >= 50 ? `19${year}` : `20${year}`
+      year = Number.parseInt(year, 10) >= 50 ? `19${year}` : `20${year}`
     }
     // Basic validation
-    const m = parseInt(month)
-    const d = parseInt(day)
+    const m = Number.parseInt(month, 10)
+    const d = Number.parseInt(day, 10)
     if (m < 1 || m > 12 || d < 1 || d > 31) return null
     return `${year}-${month}-${day}`
   }
 
   // "NOV '25", "MAR '26", "JUNE '23"
-  const monthYearMatch = trimmed.match(/^([A-Za-z]+)\s+'(\d{2})$/)
+  const monthYearMatch = MONTH_YEAR_RE.exec(trimmed)
   if (monthYearMatch) {
     const parsed = parseMonthLabel(`${monthYearMatch[1]} '${monthYearMatch[2]}`)
     if (!parsed) return null
@@ -84,13 +87,13 @@ const MONTH_MAP: Record<string, string> = {
 export function parseMonthLabel(value: string): string | null {
   if (!value || typeof value !== 'string') return null
   const trimmed = value.trim()
-  const match = trimmed.match(/^([A-Za-z]+)\s+'(\d{2})$/)
+  const match = MONTH_YEAR_RE.exec(trimmed)
   if (!match) return null
   const monthKey = match[1].toLowerCase()
   const yearShort = match[2]
   const monthNum = MONTH_MAP[monthKey]
   if (!monthNum) return null
-  const year = parseInt(yearShort) >= 50 ? `19${yearShort}` : `20${yearShort}`
+  const year = Number.parseInt(yearShort, 10) >= 50 ? `19${yearShort}` : `20${yearShort}`
   return `${year}-${monthNum}`
 }
 
@@ -119,7 +122,7 @@ export function parsePrincipalReturnRow(
   const trimmed = value.trim()
 
   // Try partial return first (has PHP amount)
-  const partialMatch = trimmed.match(PRINCIPAL_RETURN_PARTIAL)
+  const partialMatch = PRINCIPAL_RETURN_PARTIAL.exec(trimmed)
   if (partialMatch) {
     const amount = parsePHPAmount(partialMatch[1])
     const date = parseSheetDate(partialMatch[2])
@@ -128,7 +131,7 @@ export function parsePrincipalReturnRow(
   }
 
   // Try full return (no PHP amount)
-  const fullMatch = trimmed.match(PRINCIPAL_RETURN_FULL)
+  const fullMatch = PRINCIPAL_RETURN_FULL.exec(trimmed)
   if (fullMatch) {
     const date = parseSheetDate(fullMatch[1])
     if (!date) return null
@@ -157,7 +160,7 @@ export function isBorrowerNameRow(value: string, nextRowHasAmount: boolean): boo
   if (parseSheetDate(trimmed) !== null) return false
   // Check if it looks like a number or peso amount
   const cleaned = trimmed
-    .replace(/[₱\s,]/g, '')
+    .replaceAll(/[₱\s,]/g, '')
     .replace(/^PHP/i, '')
     .trim()
   if (/^\d+(\.\d+)?$/.test(cleaned)) return false

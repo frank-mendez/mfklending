@@ -20,8 +20,7 @@ interface ParseResult {
   totalRows: number
   errors: Array<{ row: number; message: string }>
   importType: ImportType
-  // Serialised full data — stored as JSON in the import_log pending row
-  serialisedData: string
+  parsedData: unknown // Full parsed payload — stored server-side only
 }
 
 // ─── uploadAndParseCSV ────────────────────────────────────────────────────────
@@ -61,7 +60,7 @@ export async function uploadAndParseCSV(
         totalRows: parsed.contributions.length + parsed.dividends.length,
         errors: parsed.errors,
         importType,
-        serialisedData: JSON.stringify(parsed),
+        parsedData: parsed,
       }
     } else if (importType === 'lending') {
       const parsed = parseLendingCSV(csvText)
@@ -78,7 +77,7 @@ export async function uploadAndParseCSV(
         totalRows: parsed.loans.length,
         errors: parsed.errors,
         importType,
-        serialisedData: JSON.stringify(parsed),
+        parsedData: parsed,
       }
     } else if (importType === 'diminishing') {
       const parsed = parseDiminishingCSV(csvText)
@@ -94,7 +93,7 @@ export async function uploadAndParseCSV(
         totalRows: parsed.loans.length,
         errors: parsed.errors,
         importType,
-        serialisedData: JSON.stringify(parsed),
+        parsedData: parsed,
       }
     } else {
       return actionError(`Import type "${importType}" is not yet supported.`)
@@ -103,7 +102,8 @@ export async function uploadAndParseCSV(
     return actionError(`Parse failed: ${String(err)}`)
   }
 
-  // Store serialised data in a pending import_log row — the row ID is the preview token
+  // Store parsed data server-side — keyed by log ID (the preview token).
+  // The client never receives the raw parsed payload, preventing tampering.
   const supabase = await createClient()
   const { data: log, error: logErr } = await supabase
     .from('import_logs')
@@ -113,6 +113,7 @@ export async function uploadAndParseCSV(
       filename: file.name,
       rows_parsed: result.totalRows,
       errors: result.errors.length > 0 ? result.errors : null,
+      parsed_data: result.parsedData,
     })
     .select('id')
     .single()
@@ -128,7 +129,7 @@ export async function uploadAndParseCSV(
     importType,
     previewToken: log.id,
     filename: file.name,
-    serialisedData: result.serialisedData,
+    // serialisedData intentionally NOT returned to the client
   })
 }
 
@@ -139,26 +140,35 @@ export async function confirmImport(
   formData: FormData
 ): Promise<ActionState> {
   const previewToken = formData.get('previewToken') as string | null
-  const importType = formData.get('importType') as ImportType | null
-  const serialisedData = formData.get('serialisedData') as string | null
-  const filename = formData.get('filename') as string | null
 
   if (!previewToken) return actionError('Missing preview token.')
-  if (!importType) return actionError('Missing import type.')
-  if (!serialisedData) return actionError('Missing parsed data.')
+
+  // Fetch the import type, filename, and parsed data from DB — never trust client-sent data
+  const supabase = await createClient()
+  const { data: logRow, error: logFetchErr } = await supabase
+    .from('import_logs')
+    .select('import_type, filename, parsed_data')
+    .eq('id', previewToken)
+    .eq('status', 'pending')
+    .single()
+
+  if (logFetchErr || !logRow?.parsed_data) {
+    return actionError('Import session not found or already completed.')
+  }
+
+  const importType = logRow.import_type as ImportType
+  const filename = logRow.filename as string
+  const parsedData = logRow.parsed_data
 
   let importResult: Awaited<ReturnType<typeof importStash>>
 
   try {
     if (importType === 'stash') {
-      const data = JSON.parse(serialisedData)
-      importResult = await importStash(data, previewToken)
+      importResult = await importStash(parsedData, previewToken)
     } else if (importType === 'lending') {
-      const data = JSON.parse(serialisedData)
-      importResult = await importLending(data, previewToken, filename ?? 'unknown')
+      importResult = await importLending(parsedData, previewToken, filename)
     } else if (importType === 'diminishing') {
-      const data = JSON.parse(serialisedData)
-      importResult = await importDiminishing(data, previewToken, filename ?? 'unknown')
+      importResult = await importDiminishing(parsedData, previewToken, filename)
     } else {
       return actionError(`Import type "${importType}" is not supported.`)
     }

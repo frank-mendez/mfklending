@@ -1,19 +1,23 @@
 DROP VIEW IF EXISTS fund_summary;
 
 CREATE VIEW fund_summary AS
+WITH active_loan_balances AS (
+  SELECT
+    l.principal,
+    COALESCE(SUM(pr.amount), 0) AS returned
+  FROM loans l
+  LEFT JOIN principal_returns pr ON pr.loan_id = l.id
+  WHERE l.status IN ('active', 'overdue')
+  GROUP BY l.id, l.principal
+)
 SELECT
   (SELECT COALESCE(SUM(amount), 0) FROM contributions)
     AS total_stash,
 
-  (SELECT COALESCE(SUM(l.principal), 0)
-   FROM loans l
-   WHERE l.status IN ('active', 'overdue'))
+  COALESCE((SELECT SUM(principal) FROM active_loan_balances), 0)
     AS total_principal_loaned,
 
-  (SELECT COALESCE(SUM(l.principal) - COALESCE(SUM(pr.amount), 0), 0)
-   FROM loans l
-   LEFT JOIN principal_returns pr ON pr.loan_id = l.id
-   WHERE l.status IN ('active', 'overdue'))
+  COALESCE((SELECT SUM(principal - returned) FROM active_loan_balances), 0)
     AS total_outstanding_balance,
 
   (SELECT COALESCE(SUM(amount_paid), 0)
@@ -32,10 +36,5 @@ SELECT
     + COALESCE((SELECT SUM(amount_paid) FROM payments WHERE payment_type = 'interest'), 0)
     + COALESCE((SELECT SUM(penalty_amount) FROM payments), 0)
     - COALESCE((SELECT SUM(amount) FROM dividends), 0)
-    - COALESCE((
-        SELECT SUM(l.principal) - COALESCE(SUM(pr.amount), 0)
-        FROM loans l
-        LEFT JOIN principal_returns pr ON pr.loan_id = l.id
-        WHERE l.status IN ('active', 'overdue')
-      ), 0)
+    - COALESCE((SELECT SUM(principal - returned) FROM active_loan_balances), 0)
   ) AS current_balance;

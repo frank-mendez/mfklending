@@ -50,41 +50,41 @@ export default async function ImportHistoryPage() {
                   </TableCell>
                 </TableRow>
               ) : (
-                importLogs.map((log) => (
-                  <TableRow key={log.id}>
-                    <TableCell className="text-sm">
-                      {formatManila(new Date(log.created_at), 'MMM d, yyyy HH:mm')}
-                    </TableCell>
-                    <TableCell>
-                      <Badge variant="outline" className="capitalize">
-                        {log.import_type}
-                      </Badge>
-                    </TableCell>
-                    <TableCell className="max-w-[200px] truncate text-sm">{log.filename}</TableCell>
-                    <TableCell>
-                      <Badge
-                        variant={
-                          log.status === 'completed'
-                            ? 'default'
-                            : log.status === 'failed'
-                              ? 'destructive'
-                              : 'secondary'
-                        }
-                      >
-                        {log.status}
-                      </Badge>
-                    </TableCell>
-                    <TableCell className="text-right">{log.rows_imported}</TableCell>
-                    <TableCell className="text-right">{log.rows_skipped}</TableCell>
-                    <TableCell className="text-right">
-                      {log.errors ? (
-                        <span className="text-destructive">{log.errors.length}</span>
-                      ) : (
-                        '0'
-                      )}
-                    </TableCell>
-                  </TableRow>
-                ))
+                importLogs.map((log) => {
+                  const statusVariant =
+                    log.status === 'completed'
+                      ? 'default'
+                      : log.status === 'failed'
+                        ? 'destructive'
+                        : 'secondary'
+                  return (
+                    <TableRow key={log.id}>
+                      <TableCell className="text-sm">
+                        {formatManila(new Date(log.created_at), 'MMM d, yyyy HH:mm')}
+                      </TableCell>
+                      <TableCell>
+                        <Badge variant="outline" className="capitalize">
+                          {log.import_type}
+                        </Badge>
+                      </TableCell>
+                      <TableCell className="max-w-[200px] truncate text-sm">
+                        {log.filename}
+                      </TableCell>
+                      <TableCell>
+                        <Badge variant={statusVariant}>{log.status}</Badge>
+                      </TableCell>
+                      <TableCell className="text-right">{log.rows_imported}</TableCell>
+                      <TableCell className="text-right">{log.rows_skipped}</TableCell>
+                      <TableCell className="text-right">
+                        {log.errors ? (
+                          <span className="text-destructive">{log.errors.length}</span>
+                        ) : (
+                          '0'
+                        )}
+                      </TableCell>
+                    </TableRow>
+                  )
+                })
               )}
             </TableBody>
           </Table>

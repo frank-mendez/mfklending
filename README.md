@@ -220,7 +220,7 @@ When a new loan is created:
 
 During transition from Google Sheets to the system, the **sheet remains the source of truth**. Partners import data via CSV exports on demand. Only automated reminders run live against the DB during this period.
 
-The import page (`/dashboard/import`) supports:
+The import page (`/import`) supports:
 
 - **Stash** — monthly contributions from all partners
 - **Lending** — full loan history including hybrid diminishing loans

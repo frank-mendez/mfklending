@@ -1,7 +1,7 @@
 'use client'
 
 import { Upload } from 'lucide-react'
-import { useActionState, useRef, useState } from 'react'
+import { useActionState, useEffect, useRef, useState } from 'react'
 import { Button } from '@/components/ui/button'
 import {
   Dialog,
@@ -18,9 +18,9 @@ import type { ImportType } from '@/types'
 
 type Step = 'upload' | 'preview' | 'result'
 
-interface UploadDialogProps {
+type UploadDialogProps = Readonly<{
   importType: ImportType
-}
+}>
 
 export function UploadDialog({ importType }: UploadDialogProps) {
   const [open, setOpen] = useState(false)
@@ -41,10 +41,30 @@ export function UploadDialog({ importType }: UploadDialogProps) {
   const parseData = parseState.success ? (parseState.data as Record<string, unknown>) : null
   const confirmData = confirmState.success ? (confirmState.data as Record<string, unknown>) : null
 
+  // Track processed tokens so stale state after dialog-close doesn't re-trigger transitions
+  const [processedParseToken, setProcessedParseToken] = useState<string | null>(null)
+  const [processedConfirmToken, setProcessedConfirmToken] = useState<string | null>(null)
+
+  const parseToken = parseData?.previewToken as string | undefined
+  const confirmToken = confirmData?.logId as string | undefined
+
+  useEffect(() => {
+    if (parseToken && parseToken !== processedParseToken && step === 'upload') {
+      setProcessedParseToken(parseToken)
+      setStep('preview')
+    }
+  }, [parseToken, processedParseToken, step])
+
+  useEffect(() => {
+    if (confirmToken && confirmToken !== processedConfirmToken && step === 'preview') {
+      setProcessedConfirmToken(confirmToken)
+      setStep('result')
+    }
+  }, [confirmToken, processedConfirmToken, step])
+
   function handleOpenChange(nextOpen: boolean) {
     setOpen(nextOpen)
     if (!nextOpen) {
-      // Reset on close
       setStep('upload')
       setSelectedFile(null)
     }
@@ -53,14 +73,6 @@ export function UploadDialog({ importType }: UploadDialogProps) {
   function handleFileChange(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0] ?? null
     setSelectedFile(file)
-  }
-
-  function handleParseSuccess() {
-    setStep('preview')
-  }
-
-  function handleConfirmSuccess() {
-    setStep('result')
   }
 
   const importTypeLabel: Record<ImportType, string> = {
@@ -90,13 +102,7 @@ export function UploadDialog({ importType }: UploadDialogProps) {
               </DialogDescription>
             </DialogHeader>
 
-            <form
-              action={parseAction}
-              onSubmit={() => {
-                // Transition to preview after parse succeeds
-                // handled by useEffect-like pattern below
-              }}
-            >
+            <form action={parseAction}>
               <input type="hidden" name="importType" value={importType} />
 
               <div className="flex flex-col gap-4 py-4">
@@ -138,28 +144,11 @@ export function UploadDialog({ importType }: UploadDialogProps) {
                 <Button type="button" variant="ghost" onClick={() => setOpen(false)}>
                   Cancel
                 </Button>
-                <Button
-                  type="submit"
-                  disabled={!selectedFile || parsePending}
-                  onClick={() => {
-                    // After action resolves, advance step if success
-                    if (parseState.success) handleParseSuccess()
-                  }}
-                >
+                <Button type="submit" disabled={!selectedFile || parsePending}>
                   {parsePending ? 'Parsing…' : 'Parse File'}
                 </Button>
               </DialogFooter>
             </form>
-
-            {/* Auto-advance to preview when parse succeeds */}
-            {parseState.success && step === 'upload' && (
-              <span
-                className="hidden"
-                ref={(el) => {
-                  if (el) handleParseSuccess()
-                }}
-              />
-            )}
           </>
         )}
 
@@ -193,12 +182,18 @@ export function UploadDialog({ importType }: UploadDialogProps) {
                   {(parseData.previewRows as Record<string, unknown>[]).map((row, i) => (
                     // biome-ignore lint/suspicious/noArrayIndexKey: stable preview rows
                     <tr key={i} className="hover:bg-muted/50">
+                      {' '}
+                      {/* NOSONAR */}
                       {Object.values(row).map((val, j) => (
                         // biome-ignore lint/suspicious/noArrayIndexKey: stable columns
                         <td key={j} className="px-3 py-1.5">
+                          {' '}
+                          {/* NOSONAR */}
                           {typeof val === 'number' && String(Object.keys(row)[j]).includes('amount')
                             ? formatPHP(val)
-                            : String(val ?? '')}
+                            : val == null
+                              ? ''
+                              : String(val)}
                         </td>
                       ))}
                     </tr>
@@ -213,6 +208,8 @@ export function UploadDialog({ importType }: UploadDialogProps) {
                 {(parseData.errors as Array<{ row: number; message: string }>).map((e, i) => (
                   // biome-ignore lint/suspicious/noArrayIndexKey: stable error list
                   <p key={i} className="text-xs text-destructive">
+                    {' '}
+                    {/* NOSONAR */}
                     Row {e.row}: {e.message}
                   </p>
                 ))}
@@ -223,20 +220,8 @@ export function UploadDialog({ importType }: UploadDialogProps) {
               <p className="text-sm text-destructive">{confirmState.message}</p>
             )}
 
-            <form
-              action={confirmAction}
-              onSubmit={() => {
-                if (confirmState.success) handleConfirmSuccess()
-              }}
-            >
+            <form action={confirmAction}>
               <input type="hidden" name="previewToken" value={parseData.previewToken as string} />
-              <input type="hidden" name="importType" value={importType} />
-              <input
-                type="hidden"
-                name="serialisedData"
-                value={parseData.serialisedData as string}
-              />
-              <input type="hidden" name="filename" value={parseData.filename as string} />
 
               <DialogFooter className="mt-4">
                 <Button type="button" variant="ghost" onClick={() => setStep('upload')}>
@@ -247,15 +232,6 @@ export function UploadDialog({ importType }: UploadDialogProps) {
                 </Button>
               </DialogFooter>
             </form>
-
-            {confirmState.success && step === 'preview' && (
-              <span
-                className="hidden"
-                ref={(el) => {
-                  if (el) handleConfirmSuccess()
-                }}
-              />
-            )}
           </>
         )}
 

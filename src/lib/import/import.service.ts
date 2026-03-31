@@ -40,85 +40,114 @@ export async function importStash(data: ParsedStashData, logId: string): Promise
       (partners ?? []).map((p: { id: string; name: string }) => [p.name.toLowerCase(), p.id])
     )
 
-    // Contributions
-    for (const c of data.contributions) {
-      const partnerId = partnerMap.get(c.partnerName.toLowerCase())
-      if (!partnerId) {
-        errors.push({ row: 0, message: `Unknown partner: ${c.partnerName}` })
-        continue
-      }
+    const contribResult = await importContributions(supabase, data.contributions, partnerMap)
+    imported += contribResult.imported
+    skipped += contribResult.skipped
+    errors.push(...contribResult.errors)
 
-      // Idempotency check
-      const { data: existing } = await supabase
-        .from('contributions')
-        .select('id')
-        .eq('partner_id', partnerId)
-        .eq('month', c.month)
-        .maybeSingle()
-
-      if (existing) {
-        skipped++
-        continue
-      }
-
-      const { error } = await supabase.from('contributions').insert({
-        partner_id: partnerId,
-        amount: c.amount,
-        month: c.month,
-        paid_at: `${c.month}-01`,
-        remarks: c.remarks,
-      })
-
-      if (error) {
-        errors.push({
-          row: 0,
-          message: `Contribution insert failed (${c.month} ${c.partnerName}): ${error.message}`,
-        })
-      } else {
-        imported++
-      }
-    }
-
-    // Dividends — insert one record per partner per distribution month
-    for (const d of data.dividends) {
-      const { data: existingDividend } = await supabase
-        .from('dividends')
-        .select('id')
-        .eq('distributed_at', `${d.month}-01`)
-        .limit(1)
-        .maybeSingle()
-
-      if (existingDividend) {
-        skipped += PARTNER_NAMES.length
-        continue
-      }
-
-      for (const partnerName of PARTNER_NAMES) {
-        const partnerId = partnerMap.get(partnerName.toLowerCase())
-        if (!partnerId) continue
-
-        const { error } = await supabase.from('dividends').insert({
-          partner_id: partnerId,
-          amount: d.amountPerPartner,
-          distributed_at: `${d.month}-01`,
-          remarks: null,
-        })
-
-        if (error) {
-          errors.push({
-            row: 0,
-            message: `Dividend insert failed (${d.month} ${partnerName}): ${error.message}`,
-          })
-        } else {
-          imported++
-        }
-      }
-    }
+    const dividendResult = await importDividends(supabase, data.dividends, partnerMap)
+    imported += dividendResult.imported
+    skipped += dividendResult.skipped
+    errors.push(...dividendResult.errors)
   } catch (err) {
     console.error('[importStash] Unhandled error:', err)
     errors.push({ row: 0, message: String(err) })
   } finally {
     await updateLog(supabase, logId, imported, skipped, errors)
+  }
+
+  return { imported, skipped, errors }
+}
+
+async function importContributions(
+  supabase: ReturnType<typeof createServiceRoleClient>,
+  contributions: ParsedStashData['contributions'],
+  partnerMap: Map<string, string>
+): Promise<ImportResult> {
+  let imported = 0
+  let skipped = 0
+  const errors: ImportResult['errors'] = []
+
+  for (const c of contributions) {
+    const partnerId = partnerMap.get(c.partnerName.toLowerCase())
+    if (!partnerId) {
+      errors.push({ row: 0, message: `Unknown partner: ${c.partnerName}` })
+      continue
+    }
+
+    // Upsert with ignoreDuplicates — UNIQUE(partner_id, month) constraint handles idempotency
+    const { data: insertResult, error } = await supabase
+      .from('contributions')
+      .upsert(
+        {
+          partner_id: partnerId,
+          amount: c.amount,
+          month: c.month,
+          paid_at: `${c.month}-01`,
+          remarks: c.remarks,
+        },
+        { onConflict: 'partner_id,month', ignoreDuplicates: true }
+      )
+      .select('id')
+
+    if (error) {
+      errors.push({
+        row: 0,
+        message: `Contribution insert failed (${c.month} ${c.partnerName}): ${error.message}`,
+      })
+    } else if (insertResult && insertResult.length > 0) {
+      imported++
+    } else {
+      skipped++
+    }
+  }
+
+  return { imported, skipped, errors }
+}
+
+async function importDividends(
+  supabase: ReturnType<typeof createServiceRoleClient>,
+  dividends: ParsedStashData['dividends'],
+  partnerMap: Map<string, string>
+): Promise<ImportResult> {
+  let imported = 0
+  let skipped = 0
+  const errors: ImportResult['errors'] = []
+
+  for (const d of dividends) {
+    for (const partnerName of PARTNER_NAMES) {
+      const partnerId = partnerMap.get(partnerName.toLowerCase())
+      if (!partnerId) continue
+
+      // Per-(partner_id, distributed_at) idempotency check — prevents partial-import skips
+      const { data: existingDividend } = await supabase
+        .from('dividends')
+        .select('id')
+        .eq('partner_id', partnerId)
+        .eq('distributed_at', `${d.month}-01`)
+        .maybeSingle()
+
+      if (existingDividend) {
+        skipped++
+        continue
+      }
+
+      const { error } = await supabase.from('dividends').insert({
+        partner_id: partnerId,
+        amount: d.amountPerPartner,
+        distributed_at: `${d.month}-01`,
+        remarks: null,
+      })
+
+      if (error) {
+        errors.push({
+          row: 0,
+          message: `Dividend insert failed (${d.month} ${partnerName}): ${error.message}`,
+        })
+      } else {
+        imported++
+      }
+    }
   }
 
   return { imported, skipped, errors }
@@ -237,8 +266,35 @@ async function importSingleLoan(
   const loanId: string = loan.id
   imported++
 
-  // Insert payments
-  for (const payment of parsedLoan.payments) {
+  const paymentsResult = await insertLoanPayments(supabase, loanId, parsedLoan.payments)
+  imported += paymentsResult.imported
+  errors.push(...paymentsResult.errors)
+
+  const returnsResult = await insertPrincipalReturns(supabase, loanId, parsedLoan.principalReturns)
+  imported += returnsResult.imported
+  errors.push(...returnsResult.errors)
+
+  const scheduleResult = await insertLoanSchedule(
+    supabase,
+    loanId,
+    parsedLoan,
+    termMonths,
+    startDate
+  )
+  errors.push(...scheduleResult.errors)
+
+  return { imported, skipped, errors }
+}
+
+async function insertLoanPayments(
+  supabase: ReturnType<typeof createServiceRoleClient>,
+  loanId: string,
+  payments: ParsedLoan['payments']
+): Promise<Pick<ImportResult, 'imported' | 'errors'>> {
+  let imported = 0
+  const errors: ImportResult['errors'] = []
+
+  for (const payment of payments) {
     const { error } = await supabase.from('payments').insert({
       loan_id: loanId,
       amount_paid: payment.amount,
@@ -255,8 +311,18 @@ async function importSingleLoan(
     }
   }
 
-  // Insert principal returns
-  for (const pr of parsedLoan.principalReturns) {
+  return { imported, errors }
+}
+
+async function insertPrincipalReturns(
+  supabase: ReturnType<typeof createServiceRoleClient>,
+  loanId: string,
+  principalReturns: ParsedLoan['principalReturns']
+): Promise<Pick<ImportResult, 'imported' | 'errors'>> {
+  let imported = 0
+  const errors: ImportResult['errors'] = []
+
+  for (const pr of principalReturns) {
     if (!pr.amount || pr.amount <= 0) continue
     const { error } = await supabase.from('principal_returns').insert({
       loan_id: loanId,
@@ -271,38 +337,49 @@ async function importSingleLoan(
     }
   }
 
-  // Generate baseline schedule
-  if (parsedLoan.principal > 0) {
-    try {
-      const scheduleEntries = generateSchedule({
-        loanType: parsedLoan.loanType,
-        principal: parsedLoan.principal,
-        rate: 0.05,
-        termMonths,
-        startDate,
-      })
+  return { imported, errors }
+}
 
-      const scheduleRows = scheduleEntries.map((entry, idx) => ({
-        loan_id: loanId,
-        due_date: entry.dueDate,
-        period_number: idx + 1,
-        principal_due: entry.principalDue,
-        interest_due: entry.interestDue,
-        total_due: entry.totalDue,
-        balance_after: entry.balanceAfter,
-        status: 'pending',
-      }))
+async function insertLoanSchedule(
+  supabase: ReturnType<typeof createServiceRoleClient>,
+  loanId: string,
+  parsedLoan: ParsedLoan,
+  termMonths: number,
+  startDate: string
+): Promise<Pick<ImportResult, 'errors'>> {
+  const errors: ImportResult['errors'] = []
 
-      const { error: schedErr } = await supabase.from('loan_schedules').insert(scheduleRows)
-      if (schedErr) {
-        errors.push({ row: 0, message: `Schedule insert failed: ${schedErr.message}` })
-      }
-    } catch (schedGenErr) {
-      errors.push({ row: 0, message: `Schedule generation failed: ${String(schedGenErr)}` })
+  if (parsedLoan.principal <= 0) return { errors }
+
+  try {
+    const scheduleEntries = generateSchedule({
+      loanType: parsedLoan.loanType,
+      principal: parsedLoan.principal,
+      rate: 0.05,
+      termMonths,
+      startDate,
+    })
+
+    const scheduleRows = scheduleEntries.map((entry, idx) => ({
+      loan_id: loanId,
+      due_date: entry.dueDate,
+      period_number: idx + 1,
+      principal_due: entry.principalDue,
+      interest_due: entry.interestDue,
+      total_due: entry.totalDue,
+      balance_after: entry.balanceAfter,
+      status: 'pending',
+    }))
+
+    const { error: schedErr } = await supabase.from('loan_schedules').insert(scheduleRows)
+    if (schedErr) {
+      errors.push({ row: 0, message: `Schedule insert failed: ${schedErr.message}` })
     }
+  } catch (schedGenErr) {
+    errors.push({ row: 0, message: `Schedule generation failed: ${String(schedGenErr)}` })
   }
 
-  return { imported, skipped, errors }
+  return { errors }
 }
 
 // ─── Diminishing Import ───────────────────────────────────────────────────────

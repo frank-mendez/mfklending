@@ -65,6 +65,35 @@ function rejoinRow(row: string[]): string {
     .join(',')
 }
 
+function classifyLoanType(
+  principalReturns: ParsedPrincipalReturn[]
+): 'flat_interest' | 'hybrid_diminishing' {
+  const partialReturnCount = principalReturns.filter((r) => r.amount !== null).length
+  if (partialReturnCount > 0 || principalReturns.length > 1) return 'hybrid_diminishing'
+  return 'flat_interest'
+}
+
+function deriveStatusAndBalance(
+  loanType: 'flat_interest' | 'hybrid_diminishing',
+  principal: number,
+  resolvedReturns: ParsedPrincipalReturn[],
+  rawReturns: ParsedPrincipalReturn[]
+): { outstandingBalance: number; status: 'active' | 'paid' } {
+  if (loanType === 'flat_interest') {
+    const hasFullReturn = rawReturns.some((r) => r.amount === null)
+    const hasAnyReturn = rawReturns.length > 0
+    const fullyPaid =
+      hasFullReturn || (hasAnyReturn && resolvedReturns.every((r) => (r.amount ?? 0) >= principal))
+    return fullyPaid
+      ? { outstandingBalance: 0, status: 'paid' }
+      : { outstandingBalance: principal, status: 'active' }
+  }
+
+  const totalReturned = resolvedReturns.reduce((sum, r) => sum + (r.amount ?? 0), 0)
+  const outstandingBalance = Math.max(0, principal - totalReturned)
+  return { outstandingBalance, status: outstandingBalance === 0 ? 'paid' : 'active' }
+}
+
 /** Parse all rows in a single loan block and return a ParsedLoan */
 function parseLoanBlock(
   borrowerName: string,
@@ -102,7 +131,7 @@ function parseLoanBlock(
     const month = parseMonthLabel(cellA)
     if (month) {
       const amount = parsePHPAmount(cellB)
-      const remarks = row[2]?.trim() || null
+      const remarks = row[2]?.trim() ?? null
       if (amount > 0) {
         payments.push({ month, amount, remarks })
       }
@@ -111,57 +140,28 @@ function parseLoanBlock(
     // Skip subtotal or empty rows silently
   }
 
-  // --- Determine loan type ---
-  const partialReturnCount = principalReturns.filter((r) => r.amount !== null).length
-  const totalReturnCount = principalReturns.length
+  const loanType = classifyLoanType(principalReturns)
+  const principal = derivePrincipal(payments[0]?.amount ?? 0)
 
-  let loanType: 'flat_interest' | 'hybrid_diminishing'
-  if (partialReturnCount > 0 || totalReturnCount > 1) {
-    loanType = 'hybrid_diminishing'
-  } else {
-    loanType = 'flat_interest'
-  }
-
-  // --- Derive principal ---
-  const firstPayment = payments[0]?.amount ?? 0
-  const principal = derivePrincipal(firstPayment)
-
-  // --- Resolve null amounts on full returns ---
   const resolvedReturns = principalReturns.map((r) => ({
     ...r,
     amount: r.amount === null ? principal : r.amount,
   }))
 
-  // --- Derive outstanding balance and status ---
-  let outstandingBalance: number
-  let status: 'active' | 'paid'
+  const { outstandingBalance, status } = deriveStatusAndBalance(
+    loanType,
+    principal,
+    resolvedReturns,
+    principalReturns
+  )
 
-  if (loanType === 'flat_interest') {
-    const hasFullReturn = principalReturns.some((r) => r.amount === null)
-    const hasAnyReturn = principalReturns.length > 0
-    if (
-      hasFullReturn ||
-      (hasAnyReturn && resolvedReturns.every((r) => (r.amount ?? 0) >= principal))
-    ) {
-      outstandingBalance = 0
-      status = 'paid'
-    } else {
-      outstandingBalance = principal
-      status = 'active'
-    }
-  } else {
-    // hybrid_diminishing
-    const totalReturned = resolvedReturns.reduce((sum, r) => sum + (r.amount ?? 0), 0)
-    outstandingBalance = Math.max(0, principal - totalReturned)
-    status = outstandingBalance === 0 ? 'paid' : 'active'
-  }
-
-  // --- Start / end months ---
-  const paymentMonths = payments.map((p) => p.month).sort()
-  const returnMonths = resolvedReturns.map((r) => dateToMonth(r.returnedAt)).sort()
-  const allMonths = [...paymentMonths, ...returnMonths].sort()
+  const paymentMonths = payments.map((p) => p.month).sort((a, b) => a.localeCompare(b))
+  const returnMonths = resolvedReturns
+    .map((r) => dateToMonth(r.returnedAt))
+    .sort((a, b) => a.localeCompare(b))
+  const allMonths = [...paymentMonths, ...returnMonths].sort((a, b) => a.localeCompare(b))
   const startMonth = allMonths[0] ?? null
-  const endMonth = allMonths[allMonths.length - 1] ?? null
+  const endMonth = allMonths.at(-1) ?? null
 
   return {
     loan: {

@@ -4,11 +4,11 @@ import { useTransition } from 'react'
 import { toast } from 'sonner'
 import { toggleReminders } from '@/lib/actions/loans'
 
-interface ReminderToggleProps {
+type ReminderToggleProps = Readonly<{
   loanId: string
   enabled: boolean
   hasSchedule: boolean
-}
+}>
 
 export function ReminderToggle({ loanId, enabled, hasSchedule }: ReminderToggleProps) {
   const [pending, startTransition] = useTransition()
@@ -40,10 +40,10 @@ export function ReminderToggle({ loanId, enabled, hasSchedule }: ReminderToggleP
       <span className="text-xs text-muted-foreground">
         {enabled ? (
           <span className="font-medium text-green-700">on</span>
-        ) : !hasSchedule ? (
-          <span title="No pending schedule entries">—</span>
-        ) : (
+        ) : hasSchedule ? (
           'off'
+        ) : (
+          <span title="No pending schedule entries">—</span>
         )}
       </span>
     </div>

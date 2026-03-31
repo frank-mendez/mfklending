@@ -186,11 +186,16 @@ export async function toggleReminders(loanId: string, enabled: boolean): Promise
 
   if (enabled) {
     // Verify there is at least one pending schedule entry before enabling
-    const { count } = await supabase
+    const { count, error: countError } = await supabase
       .from('loan_schedules')
       .select('id', { count: 'exact', head: true })
       .eq('loan_id', loanId)
       .eq('status', 'pending')
+
+    if (countError) {
+      console.error('[toggleReminders] Failed to count pending schedules', countError)
+      return actionError('Could not verify upcoming payments. Please try again.')
+    }
 
     if (!count || count === 0) {
       return actionError('No upcoming payments to remind for. Add a schedule entry first.')
@@ -220,7 +225,7 @@ export async function recordPrincipalReturn(
   formData: FormData
 ): Promise<ActionState> {
   const loanId = formData.get('loan_id') as string
-  const amountPesos = parseFloat(formData.get('amount_pesos') as string)
+  const amountPesos = Number.parseFloat(formData.get('amount_pesos') as string)
   const returnedAt = formData.get('returned_at') as string
   const remarks = (formData.get('remarks') as string) || null
 

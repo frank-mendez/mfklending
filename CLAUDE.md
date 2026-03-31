@@ -523,7 +523,7 @@ Only **automated reminders** run live against the DB during transition.
 
 ### Import page
 
-Location: `/dashboard/import` (visible to all partners during transition)
+Location: `/import` (visible to all partners during transition)
 
 Supported import types — one per sheet tab:
 | Import Type | Source Tab | Target Tables |
@@ -595,7 +595,7 @@ After each partial return:    remainingBalance -= returnAmount
 
 ### Transition verification screen
 
-Location: `/dashboard/import/verify`
+Location: `/import/verify`
 
 Compares DB totals against known expected values:
 

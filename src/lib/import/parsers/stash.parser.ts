@@ -35,6 +35,48 @@ function detectPartnerColumns(headers: string[]): {
   }
 }
 
+function isSkippableRow(rawMonth: string): boolean {
+  const lower = rawMonth.toLowerCase()
+  return lower.includes('subtotal') || lower.includes('grand total') || lower.includes('total')
+}
+
+function collectDividend(
+  row: string[],
+  month: string,
+  frankIdx: number,
+  dividends: ParsedStashData['dividends']
+): void {
+  const amountCell = frankIdx >= 0 ? row[frankIdx] : row[1]
+  const amount = parsePHPAmount(amountCell?.trim() ?? '')
+  if (amount > 0) {
+    dividends.push({ month, amountPerPartner: amount })
+  }
+}
+
+function collectContributions(
+  row: string[],
+  month: string,
+  remarks: string | null,
+  frankIdx: number,
+  francisIdx: number,
+  kimIdx: number,
+  contributions: ParsedContribution[]
+): void {
+  const partners: Array<{ name: string; idx: number }> = [
+    { name: 'Frank', idx: frankIdx },
+    { name: 'Francis', idx: francisIdx },
+    { name: 'Kim', idx: kimIdx },
+  ]
+
+  for (const { name, idx } of partners) {
+    if (idx < 0) continue
+    const amount = parsePHPAmount(row[idx]?.trim() ?? '')
+    if (amount > 0) {
+      contributions.push({ partnerName: name, month, amount, remarks })
+    }
+  }
+}
+
 /**
  * Parses a raw CSV string from the Stash tab export.
  * Returns contributions and dividends.
@@ -73,59 +115,31 @@ export function parseStashCSV(csvString: string): ParsedStashData {
 
   const headers = rows[headerRowIdx].map((h) => h?.trim() ?? '')
   const { frankIdx, francisIdx, kimIdx, remarksIdx } = detectPartnerColumns(headers)
-  const monthIdx = 0 // Month is always the first column
 
   let inDividendSection = false
 
   for (let i = headerRowIdx + 1; i < rows.length; i++) {
     const row = rows[i]
-    const rawMonth = row[monthIdx]?.trim() ?? ''
+    const rawMonth = row[0]?.trim() ?? ''
 
     if (!rawMonth) continue
 
-    // Detect dividend section
     if (rawMonth.toLowerCase().includes('dividend')) {
       inDividendSection = true
       continue
     }
 
-    // Skip subtotal/grand total rows but keep scanning for dividend section
-    if (
-      rawMonth.toLowerCase().includes('subtotal') ||
-      rawMonth.toLowerCase().includes('grand total') ||
-      rawMonth.toLowerCase().includes('total')
-    ) {
-      continue
-    }
+    if (isSkippableRow(rawMonth)) continue
 
     const month = parseMonthLabel(rawMonth)
-    if (!month) continue // skip rows without valid month labels
+    if (!month) continue
 
     const remarks = remarksIdx >= 0 ? row[remarksIdx]?.trim() || null : null
 
     if (inDividendSection) {
-      // In dividend section, look for the amount per partner (Frank's column or a single amount)
-      const amountCell = frankIdx >= 0 ? row[frankIdx] : row[1]
-      const amount = parsePHPAmount(amountCell?.trim() ?? '')
-      if (amount > 0) {
-        dividends.push({ month, amountPerPartner: amount })
-      }
+      collectDividend(row, month, frankIdx, dividends)
     } else {
-      // Normal contribution row
-      const partners: Array<{ name: string; idx: number }> = [
-        { name: 'Frank', idx: frankIdx },
-        { name: 'Francis', idx: francisIdx },
-        { name: 'Kim', idx: kimIdx },
-      ]
-
-      for (const { name, idx } of partners) {
-        if (idx < 0) continue
-        const rawAmount = row[idx]?.trim() ?? ''
-        const amount = parsePHPAmount(rawAmount)
-        if (amount > 0) {
-          contributions.push({ partnerName: name, month, amount, remarks })
-        }
-      }
+      collectContributions(row, month, remarks, frankIdx, francisIdx, kimIdx, contributions)
     }
   }
 

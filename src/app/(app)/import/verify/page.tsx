@@ -21,7 +21,7 @@ const EXPECTED_TOTAL_STASH = 33300000 // ₱333,000
 const EXPECTED_PER_PARTNER = 11100000 // ₱111,000
 const EXPECTED_DIVIDENDS = 3000000 // ₱30,000 (Nov 2025)
 
-function Check({ pass, label }: { pass: boolean; label: string }) {
+function Check({ pass, label }: Readonly<{ pass: boolean; label: string }>) {
   return (
     <div className="flex items-center gap-2">
       {pass ? (
