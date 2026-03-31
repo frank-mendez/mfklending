@@ -7,6 +7,7 @@ import {
   LayoutDashboard,
   LogOut,
   PiggyBank,
+  Upload,
   Users,
 } from 'lucide-react'
 import Link from 'next/link'
@@ -22,6 +23,7 @@ const navItems = [
   { href: '/stash', label: 'Stash', icon: PiggyBank, exact: false },
   { href: '/transactions', label: 'Transactions', icon: ArrowLeftRight, exact: false },
   { href: '/reports', label: 'Reports', icon: BarChart3, exact: false },
+  { href: '/import', label: 'Import', icon: Upload, exact: false },
 ]
 
 interface DashboardNavProps {
