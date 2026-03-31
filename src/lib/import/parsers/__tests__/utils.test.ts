@@ -171,4 +171,26 @@ describe('parsePrincipalReturnRow — invalid-date branch', () => {
     // "99/01/24" passes the regex (1–2 digit month) but fails parseSheetDate validation (month 99)
     expect(parsePrincipalReturnRow('----PRINCIPAL RETURNED 99/01/24----')).toBeNull()
   })
+
+  it('returns null when partial-return marker contains an invalid date (line 129 branch)', () => {
+    // "99/01/24" passes the PARTIAL regex but fails parseSheetDate → null
+    expect(parsePrincipalReturnRow('----PRINCIPAL RETURNED PHP 5,000 99/01/24----')).toBeNull()
+  })
+
+  it('returns null when value is not a string (line 121 typeof branch)', () => {
+    // TypeScript callers always pass strings, but the runtime guard must be covered
+    expect(parsePrincipalReturnRow(42 as unknown as string)).toBeNull()
+  })
+})
+
+describe('parseMonthLabel — additional branches', () => {
+  it('returns null for a regex-matching string with an unknown month abbreviation (line 95 branch)', () => {
+    // "XYZ '26" matches MONTH_YEAR_RE but "xyz" is not in MONTH_MAP → null
+    expect(parseMonthLabel("XYZ '26")).toBeNull()
+  })
+
+  it('returns a 19xx year for two-digit year >= 50 (line 96 true branch)', () => {
+    // year 55 >= 50 → "1955"
+    expect(parseMonthLabel("JAN '55")).toBe('1955-01')
+  })
 })

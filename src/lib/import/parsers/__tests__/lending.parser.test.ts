@@ -223,5 +223,29 @@ FEB '26,2000,`
       expect(result.loans[0].payments).toHaveLength(1)
       expect(result.loans[0].payments[0].month).toBe('2026-02')
     })
+
+    it('silently skips a non-month row with a date-style cellA inside a loan block (if(month) false branch)', () => {
+      // "01/05/25" is parsed by parseSheetDate (not null) → isBorrowerNameRow returns false
+      // → row lands in the block; parseMonthLabel("01/05/25") = null → if(month) false → skipped
+      const csv = `JUAN DELA CRUZ,,
+JAN '26,1500,
+01/05/25,,
+FEB '26,1500,`
+      const result = parseLendingCSV(csv)
+      expect(result.loans[0].payments).toHaveLength(2)
+      expect(result.errors).toHaveLength(0)
+    })
+
+    it('treats a single-column month row as zero-amount (row[1] undefined → cellB = "", line 110)', () => {
+      // PapaParse parses "JAN '26" (no comma) as a one-element array; row[1] is undefined
+      // row[1]?.trim() → undefined, ?? '' → '', parsePHPAmount('') = 0 → payment skipped
+      const csv = `SINGLE COL BORROWER,,
+JAN '26
+FEB '26,2000,`
+      const result = parseLendingCSV(csv)
+      // JAN '26 has no amount → not pushed; FEB '26 is the only payment
+      expect(result.loans[0].payments).toHaveLength(1)
+      expect(result.loans[0].payments[0].month).toBe('2026-02')
+    })
   })
 })

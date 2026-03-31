@@ -171,4 +171,31 @@ Period,Due Date,Balance
     // totalDue falls back to principalDue + interestDue = 0 + 0 = 0
     expect(p1.totalDue).toBe(0)
   })
+
+  it('returns 0 for balanceAfter when balance column is absent (line 138-139 false branch)', () => {
+    // Header has Period, Due Date, Monthly Payment, Principal, Interest — no Balance column
+    // balanceIdx = -1 → false branch → balanceAfter = 0
+    const csv = `Borrower: No Balance,,,,
+Period,Due Date,Monthly Payment,Principal,Interest
+1,01/31/24,27027,17527,9500
+2,02/29/24,27027,17860,9167`
+    const result = parseDiminishingCSV(csv)
+    expect(result.loans).toHaveLength(1)
+    const p1 = result.loans[0].payments[0]
+    expect(p1.balanceAfter).toBe(0)
+    // principal = balanceAfter(0) + principalDue → 0 + 1752700
+    expect(result.loans[0].principal).toBe(1752700)
+  })
+
+  it('returns error for every row when due-date column is absent (line 124 false branch)', () => {
+    // Header has no "due" or "date" column → dueDateIdx = -1 → rawDate = '' → all rows errored
+    const csv = `Borrower: No Dates,,,,
+Period,Monthly Payment,Principal,Interest,Balance
+1,27027,17527,9500,482473
+2,27027,17860,9167,464613`
+    const result = parseDiminishingCSV(csv)
+    // All rows produce "Could not parse due date" errors → no payments → "No payment rows" error
+    expect(result.errors.length).toBeGreaterThan(0)
+    expect(result.loans).toHaveLength(0)
+  })
 })

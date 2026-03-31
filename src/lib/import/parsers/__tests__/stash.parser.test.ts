@@ -146,4 +146,18 @@ FEB '24,3000`
     )
     expect(frankFeb?.remarks).toBeNull()
   })
+
+  it('handles a truncated dividend row where the frank column cell is undefined (line 50 ?.trim() branch)', () => {
+    // The dividend row "NOV '25" has only 1 column → row[frankIdx=1] is undefined
+    // amountCell = undefined, amountCell?.trim() = undefined, ?? '' = '' → parsePHPAmount('') = 0
+    // → no dividend pushed
+    const csv = `MAIN STASH,,,,
+Month,Frank,Francis,Kim,Remarks
+OCT '22,2000,2000,2000,
+DIVIDEND DISTRIBUTED,,,,
+NOV '25`
+    const result = parseStashCSV(csv)
+    // Truncated dividend row contributes 0 → should produce no dividend entry
+    expect(result.dividends).toHaveLength(0)
+  })
 })
