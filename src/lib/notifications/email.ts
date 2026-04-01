@@ -4,11 +4,6 @@ import { formatPHP } from '@/lib/utils/currency'
 import { formatManila } from '@/lib/utils/date'
 import type { PartnerEscalation, PendingNotification } from '@/types'
 
-if (!process.env.RESEND_API_KEY) {
-  throw new Error('Missing environment variable: RESEND_API_KEY')
-}
-
-const resend = new Resend(process.env.RESEND_API_KEY)
 const FROM_EMAIL = process.env.RESEND_FROM_EMAIL ?? 'reminders@mfklending.com'
 
 export interface EmailPayload {
@@ -169,6 +164,11 @@ Please follow up with these borrowers directly.
 export async function sendEmail(
   payload: EmailPayload
 ): Promise<{ success: boolean; error?: string }> {
+  if (!process.env.RESEND_API_KEY) {
+    console.error('[email] sendEmail: RESEND_API_KEY is not set')
+    return { success: false, error: 'Email service is not configured' }
+  }
+  const resend = new Resend(process.env.RESEND_API_KEY)
   try {
     const { error } = await resend.emails.send({
       from: FROM_EMAIL,
