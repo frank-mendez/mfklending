@@ -45,9 +45,10 @@ export function buildBorrowerReminderSMS(notification: PendingNotification): str
     message = `MFK Lending: Hi ${firstName}, your payment of ${formattedAmount} is due TODAY. Pay to GoTyme 014721202843 ASAP.`
   } else {
     // overdue_1day, overdue_7day, overdue_weekly
+    // Account number first so it is never truncated
     const formattedPenalty = formatPHP(penaltyAmount)
     const totalDue = formatPHP(amountDue + penaltyAmount)
-    message = `MFK Lending: Hi ${firstName}, your payment of ${formattedAmount} is ${daysOverdue} day(s) overdue. Penalty: ${formattedPenalty}. Total due: ${totalDue}. Pay to GoTyme 014721202843.`
+    message = `MFK Lending: Hi ${firstName}, pay ${totalDue} to GoTyme 014721202843 NOW. ${daysOverdue}d overdue (incl. ${formattedPenalty} penalty).`
   }
 
   // Truncate to 160 characters if over limit
