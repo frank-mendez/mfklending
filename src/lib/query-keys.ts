@@ -33,4 +33,8 @@ export const queryKeys = {
     all: ['transactions'] as const,
     list: () => [...queryKeys.transactions.all, 'list'] as const,
   },
+  notifications: {
+    all: ['notifications'] as const,
+    recent: () => [...queryKeys.notifications.all, 'recent'] as const,
+  },
 } as const

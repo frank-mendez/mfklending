@@ -187,3 +187,63 @@ export type LoanWithReturns = Loan & {
   /** Computed: principal - SUM(principal_returns.amount) */
   outstanding_balance: number
 }
+
+// ─── Notifications ──────────────────────────────────────────────────────────
+
+export type NotificationChannel = 'email' | 'sms'
+
+export type NotificationTypeEnum =
+  | 'reminder_3day'
+  | 'reminder_1day'
+  | 'reminder_due'
+  | 'overdue_1day'
+  | 'overdue_7day'
+  | 'overdue_weekly'
+
+export interface NotificationLog {
+  id: string
+  loan_id: string
+  schedule_id: string | null
+  borrower_id: string
+  channel: NotificationChannel
+  notification_type: NotificationTypeEnum
+  recipient: string
+  subject: string | null
+  body: string
+  status: 'pending' | 'sent' | 'failed'
+  error: string | null
+  sent_at: string | null
+  created_at: string
+}
+
+// What the reminder engine produces before sending
+export interface PendingNotification {
+  loanId: string
+  scheduleId: string | null
+  borrowerId: string
+  borrowerName: string
+  borrowerEmail: string
+  borrowerPhone: string
+  channel: NotificationChannel
+  notificationType: NotificationTypeEnum
+  daysUntilDue: number // negative = overdue
+  dueDate: string // YYYY-MM-DD
+  amountDue: number // centavos
+  penaltyAmount: number // centavos, 0 if not overdue
+  outstandingBalance: number // centavos
+}
+
+export interface PartnerEscalation {
+  loanId: string
+  borrowerName: string
+  daysOverdue: number
+  totalOverdueAmount: number // centavos — sum of overdue schedule entries
+  penaltyAccrued: number // centavos
+  scheduleEntries: Array<{
+    period: number
+    dueDate: string
+    amountDue: number
+    daysLate: number
+    penalty: number
+  }>
+}
