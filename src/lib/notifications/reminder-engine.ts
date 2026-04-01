@@ -114,7 +114,11 @@ export async function getLoansRequiringNotification(): Promise<PendingNotificati
       if (loan.loan_type === 'hybrid_diminishing') {
         const totalReturned = principalReturnsMap[loan.id] ?? 0
         outstandingBalance = loan.principal - totalReturned
+      } else if (loan.loan_type === 'flat_interest') {
+        // Flat-interest loans: borrower pays interest only — full principal is always outstanding
+        outstandingBalance = loan.principal
       } else {
+        // Diminishing: balance tracked per schedule row
         outstandingBalance = schedule.balance_after
       }
 
