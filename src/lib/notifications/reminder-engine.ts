@@ -39,12 +39,15 @@ export async function getLoansRequiringNotification(): Promise<PendingNotificati
   if (!loans || loans.length === 0) return []
 
   // 2. Fetch today's already-sent notifications for deduplication (Manila day)
-  const { data: sentToday } = await supabase
+  const { data: sentToday, error: sentTodayError } = await supabase
     .from('notification_logs')
     .select('loan_id, schedule_id, notification_type, channel')
     .eq('status', 'sent')
-    .gte('created_at', `${today}T00:00:00+08:00`)
-    .lte('created_at', `${today}T23:59:59+08:00`)
+    .gte('sent_at', `${today}T00:00:00+08:00`)
+    .lte('sent_at', `${today}T23:59:59+08:00`)
+
+  if (sentTodayError)
+    throw new Error(`Failed to fetch sent notifications: ${sentTodayError.message}`)
 
   const sentSet = new Set(
     (sentToday ?? []).map(
@@ -59,10 +62,12 @@ export async function getLoansRequiringNotification(): Promise<PendingNotificati
 
   const principalReturnsMap: Record<string, number> = {}
   if (hybridLoanIds.length > 0) {
-    const { data: returns } = await supabase
+    const { data: returns, error: returnsError } = await supabase
       .from('principal_returns')
       .select('loan_id, amount')
       .in('loan_id', hybridLoanIds)
+
+    if (returnsError) throw new Error(`Failed to fetch principal returns: ${returnsError.message}`)
 
     for (const r of returns ?? []) {
       principalReturnsMap[r.loan_id] = (principalReturnsMap[r.loan_id] ?? 0) + r.amount

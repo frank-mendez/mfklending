@@ -24,6 +24,9 @@
   },
   "license": "ISC",
   "author": "Frank Mendez",
+  "engines": {
+    "node": ">=20"
+  },
   "scripts": {
     "dev": "next dev",
     "build": "next build",

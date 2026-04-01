@@ -17,8 +17,17 @@ const MFK_PAYMENT_DETAILS = `Bank: GoTyme Bank
 Account Name: MFK Lending Corp
 Account Number: 014721202843`
 
+function escapeHtml(text: string): string {
+  return text
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;')
+}
+
 function toHtml(text: string): string {
-  return `<pre style="font-family: Arial, sans-serif; font-size: 14px; line-height: 1.6;">${text}</pre>`
+  return `<pre style="font-family: Arial, sans-serif; font-size: 14px; line-height: 1.6;">${escapeHtml(text)}</pre>`
 }
 
 export function buildBorrowerReminderEmail(notification: PendingNotification): EmailPayload {
@@ -88,7 +97,7 @@ Your payment of ${formattedAmount} was due on ${formattedDate} and is now 1 day 
 A late penalty of ${penaltyPerDay}/day is now being charged on the overdue interest amount.
 
 Amount overdue: ${formattedAmount}
-Penalty accrued: ${formattedPenalty} (${daysOverdue} day(s) × 1% × ${formattedAmount})
+Penalty accrued: ${formattedPenalty} (${daysOverdue} day(s) × 1%/day on overdue interest)
 Total now due: ${totalNowDue}
 
 Please settle immediately to avoid further penalties.

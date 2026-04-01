@@ -2,8 +2,7 @@
 import { type NextRequest, NextResponse } from 'next/server'
 import { runReminderPipeline } from '@/lib/notifications/dispatcher'
 
-export async function POST(request: NextRequest) {
-  // Validate CRON_SECRET
+async function handleCronRequest(request: NextRequest) {
   const authHeader = request.headers.get('authorization')
   if (authHeader !== `Bearer ${process.env.CRON_SECRET}`) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
@@ -22,7 +21,12 @@ export async function POST(request: NextRequest) {
   }
 }
 
-// Block GET requests — cron triggers via POST only
-export async function GET() {
-  return NextResponse.json({ error: 'Method not allowed' }, { status: 405 })
+// Vercel Cron sends GET requests by default
+export async function GET(request: NextRequest) {
+  return handleCronRequest(request)
+}
+
+// POST is kept for manual triggers (e.g. curl, Run Now button)
+export async function POST(request: NextRequest) {
+  return handleCronRequest(request)
 }

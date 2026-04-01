@@ -111,8 +111,10 @@ export async function dispatchNotification(
   }
 }
 
-export async function dispatchPartnerEscalation(escalations: PartnerEscalation[]): Promise<void> {
-  if (escalations.length === 0) return
+export async function dispatchPartnerEscalation(
+  escalations: PartnerEscalation[]
+): Promise<boolean> {
+  if (escalations.length === 0) return false
 
   try {
     const supabase = createServiceRoleClient()
@@ -124,20 +126,31 @@ export async function dispatchPartnerEscalation(escalations: PartnerEscalation[]
 
     if (partnerError || !partners || partners.length === 0) {
       console.error('[dispatcher] Failed to fetch partner emails:', partnerError?.message)
-      return
+      return false
     }
 
     const partnerEmails = partners.map((p: { id: string; email: string }) => p.email)
     const payload = buildPartnerEscalationEmail(escalations, partnerEmails)
 
     // Get borrower_id for the first escalated loan (for the log entry)
-    const { data: firstLoan } = await supabase
+    const { data: firstLoan, error: loanError } = await supabase
       .from('loans')
       .select('borrower_id')
       .eq('id', escalations[0].loanId)
       .single()
 
-    const borrowerId = firstLoan?.borrower_id
+    if (loanError || !firstLoan?.borrower_id) {
+      // TODO: Replace with Sentry.captureException() once @sentry/nextjs is installed
+      console.error(
+        '[dispatcher] Could not resolve borrower_id for escalation loan:',
+        escalations[0].loanId,
+        loanError?.message
+      )
+      return false
+    }
+
+    const borrowerId = firstLoan.borrower_id
+    let anySent = false
 
     for (const partner of partners as Array<{ id: string; email: string }>) {
       const singlePayload = { ...payload, to: partner.email }
@@ -164,14 +177,19 @@ export async function dispatchPartnerEscalation(escalations: PartnerEscalation[]
         await updateNotificationLog(logData.id, result.success ? 'sent' : 'failed', result.error)
       }
 
-      if (!result.success) {
+      if (result.success) {
+        anySent = true
+      } else {
         console.error('[dispatcher] Failed to send escalation email to partner:', partner.email)
       }
     }
+
+    return anySent
   } catch (err) {
     const errorMsg = err instanceof Error ? err.message : 'Unknown escalation error'
     // TODO: Replace with Sentry.captureException() once @sentry/nextjs is installed
     console.error('[dispatcher] dispatchPartnerEscalation threw:', errorMsg)
+    return false
   }
 }
 
@@ -216,11 +234,11 @@ export async function runReminderPipeline(): Promise<ReminderPipelineResult> {
 
   // Dispatch partner escalations if any
   if (escalations.length > 0) {
-    await dispatchPartnerEscalation(escalations).catch((err) => {
+    escalationsSent = await dispatchPartnerEscalation(escalations).catch((err) => {
       const msg = err instanceof Error ? err.message : 'Escalation error'
       errors.push(`dispatchPartnerEscalation: ${msg}`)
+      return false
     })
-    escalationsSent = escalations.length > 0
   }
 
   return {

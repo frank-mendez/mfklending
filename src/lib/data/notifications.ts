@@ -1,4 +1,5 @@
 import { createServiceRoleClient } from '@/lib/supabase/service-role'
+import { todayManila } from '@/lib/utils/date'
 import type { NotificationLog } from '@/types'
 
 export interface NotificationLogWithBorrower extends NotificationLog {
@@ -32,22 +33,22 @@ export async function getNotificationLogs(limit = 50): Promise<NotificationLogWi
 
 export async function getNotificationStats() {
   const supabase = createServiceRoleClient()
-  const now = new Date()
-  const todayStart = new Date(now)
-  todayStart.setHours(0, 0, 0, 0)
-  const monthStart = new Date(now.getFullYear(), now.getMonth(), 1)
+  // Use Manila calendar day for "today" and "this month" boundaries
+  const today = todayManila() // 'yyyy-MM-dd' in Asia/Manila
+  const todayStart = `${today}T00:00:00+08:00`
+  const monthStart = `${today.slice(0, 7)}-01T00:00:00+08:00`
 
   const [todayResult, monthResult, failedResult, activeResult] = await Promise.all([
     supabase
       .from('notification_logs')
       .select('id', { count: 'exact', head: true })
       .eq('status', 'sent')
-      .gte('created_at', todayStart.toISOString()),
+      .gte('sent_at', todayStart),
     supabase
       .from('notification_logs')
       .select('id', { count: 'exact', head: true })
       .eq('status', 'sent')
-      .gte('created_at', monthStart.toISOString()),
+      .gte('sent_at', monthStart),
     supabase
       .from('notification_logs')
       .select('id', { count: 'exact', head: true })
