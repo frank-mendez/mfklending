@@ -2,7 +2,7 @@ import crypto from 'node:crypto'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 // We test validateWebhookSignature by mocking env var
-const testSecret = 'test-webhook-secret'
+const testSecret = 'not-a-real-secret-do-not-use'
 const testPayload = JSON.stringify({ event: 'document_completed', document: { id: 'doc-123' } })
 const validSig = crypto.createHmac('sha256', testSecret).update(testPayload).digest('hex')
 
