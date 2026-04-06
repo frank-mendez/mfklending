@@ -182,7 +182,7 @@ export const resendContract = withSentry(
     const swDoc = signwellResult.data
     const now = new Date().toISOString()
 
-    await serviceClient
+    const { error: updateError } = await serviceClient
       .from('loans')
       .update({
         signwell_document_id: swDoc.id,
@@ -193,6 +193,10 @@ export const resendContract = withSentry(
         contract_signed_pdf_path: null,
       })
       .eq('id', loanId)
+
+    if (updateError) {
+      return actionError('Failed to update loan record after resending contract')
+    }
 
     await serviceClient.storage
       .from('contracts')
