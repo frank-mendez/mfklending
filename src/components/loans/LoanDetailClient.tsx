@@ -2,10 +2,10 @@
 
 import { useQueryClient } from '@tanstack/react-query'
 import Link from 'next/link'
+import { ContractSection } from '@/components/loans/ContractSection'
 import { PaymentScheduleTable } from '@/components/loans/PaymentScheduleTable'
 import { CurrencyDisplay } from '@/components/shared/CurrencyDisplay'
 import { StatusBadge } from '@/components/shared/StatusBadge'
-import { Badge } from '@/components/ui/badge'
 import {
   Table,
   TableBody,
@@ -65,10 +65,6 @@ export function LoanDetailClient({ initialData }: LoanDetailClientProps) {
                 {loan.loan_type === 'flat_interest' ? 'Flat Interest' : 'Diminishing'}
               </span>
               <StatusBadge status={loan.status} />
-              {/* Contract placeholder */}
-              <Badge variant="outline" className="text-muted-foreground border-muted-foreground/40">
-                Contract: Pending
-              </Badge>
             </div>
             <div className="flex items-center gap-2 text-sm text-muted-foreground">
               <span>{formatManila(loan.start_date, 'MMM d, yyyy')}</span>
@@ -166,12 +162,14 @@ export function LoanDetailClient({ initialData }: LoanDetailClientProps) {
               </div>
             </div>
 
-            <div className="border-t pt-3">
-              <p className="text-xs text-muted-foreground mb-1.5">Contract</p>
-              <Badge variant="outline" className="text-muted-foreground border-muted-foreground/40">
-                Pending
-              </Badge>
-            </div>
+            <ContractSection
+              loanId={loan.id}
+              borrowerEmail={loan.borrower.email}
+              contractStatus={loan.contract_status}
+              contractSentAt={loan.contract_sent_at}
+              contractSignedAt={loan.contract_signed_at}
+              contractSignedPdfPath={loan.contract_signed_pdf_path}
+            />
 
             <div className="border-t pt-3 text-xs text-muted-foreground space-y-1">
               <div className="flex justify-between">
