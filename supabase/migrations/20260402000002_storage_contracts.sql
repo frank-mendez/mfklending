@@ -1,3 +1,4 @@
+-- NOSONAR: S1192 — 'contracts' is the bucket name; cannot define SQL constants in migrations
 INSERT INTO storage.buckets (id, name, public, file_size_limit, allowed_mime_types)
 VALUES (
   'contracts',
