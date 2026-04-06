@@ -19,7 +19,9 @@ describe('validateWebhookSignature', () => {
 
   it('returns false for an invalid signature', async () => {
     const { validateWebhookSignature } = await import('../client')
-    expect(validateWebhookSignature(testPayload, 'badsignature')).toBe(false)
+    // Use a plausible 64-char hex string (wrong value) to exercise timingSafeEqual
+    const wrongSig = 'a'.repeat(64)
+    expect(validateWebhookSignature(testPayload, wrongSig)).toBe(false)
   })
 
   it('returns false when payload is tampered', async () => {

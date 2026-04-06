@@ -174,13 +174,16 @@ export function validateWebhookSignature(payload: string, signatureHeader: strin
   const secret = process.env.SIGNWELL_WEBHOOK_SECRET
   if (!secret || !signatureHeader) return false
   try {
-    const expectedSig = crypto.createHmac('sha256', secret).update(payload).digest('hex')
+    // Compare as raw 32-byte buffers (hex-decoded) so timingSafeEqual is always
+    // reached for any 64-char hex input, preventing length-based timing leaks.
+    const expectedBuf = Buffer.from(
+      crypto.createHmac('sha256', secret).update(payload).digest('hex'),
+      'hex'
+    )
+    const receivedBuf = Buffer.from(signatureHeader, 'hex')
 
-    const expected = Buffer.from(expectedSig)
-    const received = Buffer.from(signatureHeader)
-
-    if (expected.length !== received.length) return false
-    return crypto.timingSafeEqual(expected, received)
+    if (expectedBuf.length !== receivedBuf.length) return false
+    return crypto.timingSafeEqual(expectedBuf, receivedBuf)
   } catch {
     return false
   }
