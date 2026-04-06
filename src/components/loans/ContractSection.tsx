@@ -155,14 +155,9 @@ export function ContractSection({
         )}
 
         {contractStatus === 'pending_signature' && (
-          <>
-            <Button size="sm" variant="outline" onClick={handleResend} disabled={isPending}>
-              Resend Contract
-            </Button>
-            <Button size="sm" variant="ghost" onClick={() => handleDownload('unsigned')}>
-              View Unsigned Contract
-            </Button>
-          </>
+          <Button size="sm" variant="ghost" onClick={() => handleDownload('unsigned')}>
+            View Unsigned Contract
+          </Button>
         )}
 
         {contractStatus === 'signed' && (
