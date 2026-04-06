@@ -16,7 +16,6 @@ import type { ContractStatus } from '@/types'
 
 interface ContractSectionProps {
   loanId: string
-  borrowerEmail: string
   contractStatus: ContractStatus
   contractSentAt: string | null
   contractSignedAt: string | null
@@ -25,10 +24,10 @@ interface ContractSectionProps {
 
 export function ContractSection({
   loanId,
-  borrowerEmail,
   contractStatus,
   contractSentAt,
   contractSignedAt,
+  contractSignedPdfPath,
 }: ContractSectionProps) {
   const [isPending, startTransition] = useTransition()
   const [errorMsg, setErrorMsg] = useState<string | null>(null)
@@ -88,9 +87,6 @@ export function ContractSection({
 
   const loadingMessage =
     loadingPhase === 'pdf' ? 'Generating contract PDF...' : 'Sending to borrower...'
-
-  // Suppress unused variable warning — borrowerEmail is declared for context
-  void borrowerEmail
 
   return (
     <div className="border-t pt-3 flex flex-col gap-2">
@@ -170,7 +166,12 @@ export function ContractSection({
         )}
 
         {contractStatus === 'signed' && (
-          <Button size="sm" onClick={() => handleDownload('signed')}>
+          <Button
+            size="sm"
+            onClick={() => handleDownload('signed')}
+            disabled={!contractSignedPdfPath}
+            title={!contractSignedPdfPath ? 'Signed PDF not yet available' : undefined}
+          >
             Download Signed Contract
           </Button>
         )}

@@ -164,7 +164,6 @@ export function LoanDetailClient({ initialData }: LoanDetailClientProps) {
 
             <ContractSection
               loanId={loan.id}
-              borrowerEmail={loan.borrower.email}
               contractStatus={loan.contract_status}
               contractSentAt={loan.contract_sent_at}
               contractSignedAt={loan.contract_signed_at}
