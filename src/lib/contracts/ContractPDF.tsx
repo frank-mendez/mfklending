@@ -6,7 +6,7 @@
 import { Document, Page, StyleSheet, Text, View } from '@react-pdf/renderer'
 import type { ContractData } from '@/types'
 
-// ─── Formatting helpers (no Intl in react-pdf environment) ────────────────────
+// ─── Formatting helpers ───────────────────────────────────────────────────────
 
 function formatPHP(centavos: number): string {
   const pesos = centavos / 100
@@ -257,7 +257,8 @@ export function ContractPDF({ data }: ContractPDFProps) {
         <View style={styles.highlighted}>
           <Text style={styles.highlightedBold}>
             Monthly Interest: The interest on the outstanding loan balance is calculated at a rate
-            of 5% per month, on the outstanding loan balance for a three-month loan term.
+            of {(data.interestRate * 100).toFixed(0)}% per month, on the outstanding loan balance
+            for a {data.termMonths}-month loan term.
           </Text>
         </View>
 

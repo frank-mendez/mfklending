@@ -54,7 +54,7 @@ export function formatContractData(
     borrowerBank: loan.borrower.bank_name ?? '',
     borrowerAccountName: loan.borrower.account_name ?? '',
     borrowerAccountNumber: loan.borrower.account_number ?? '',
-    loanPurpose: loan.purpose,
+    loanPurpose: loan.purpose ?? null,
     principalCentavos,
     interestRate: loan.interest_rate,
     termMonths: loan.term_months,

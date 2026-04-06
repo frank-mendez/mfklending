@@ -35,12 +35,15 @@ export const generateAndSendContract = withSentry(
 
     const loan = loanData as unknown as LoanFull
 
-    // 3. Validate contract status
+    // 3. Validate contract status and loan type
     if (loan.contract_status === 'pending_signature') {
       return actionError('Contract already sent — awaiting signature')
     }
     if (loan.contract_status === 'signed') {
       return actionError('Contract already signed')
+    }
+    if (loan.loan_type === 'diminishing') {
+      return actionError('Contract generation is not supported for diminishing balance loans')
     }
 
     // 4. For hybrid_diminishing, compute outstanding balance
@@ -54,7 +57,7 @@ export const generateAndSendContract = withSentry(
         (sum: number, r: { amount: number }) => sum + r.amount,
         0
       )
-      outstandingBalance = loan.principal - totalReturned
+      outstandingBalance = Math.max(0, loan.principal - totalReturned)
     }
 
     // 5. Format contract data
@@ -84,9 +87,9 @@ export const generateAndSendContract = withSentry(
 
     const swDoc = signwellResult.data
 
-    // 8. Update loan record
+    // 8. Update loan record — conditional to prevent duplicate sends from concurrent requests
     const now = new Date().toISOString()
-    const { error: updateError } = await serviceClient
+    const { data: updated, error: updateError } = await serviceClient
       .from('loans')
       .update({
         signwell_document_id: swDoc.id,
@@ -95,9 +98,16 @@ export const generateAndSendContract = withSentry(
         contract_sent_at: now,
       })
       .eq('id', loanId)
+      .neq('contract_status', 'pending_signature')
+      .neq('contract_status', 'signed')
+      .select('id')
 
     if (updateError) {
       return actionError('Failed to update loan record after sending contract')
+    }
+
+    if (!updated || updated.length === 0) {
+      return actionError('Contract was already sent by a concurrent request')
     }
 
     // 9. Upload unsigned PDF to Supabase Storage
@@ -155,7 +165,7 @@ export const resendContract = withSentry(
         (sum: number, r: { amount: number }) => sum + r.amount,
         0
       )
-      outstandingBalance = loan.principal - totalReturned
+      outstandingBalance = Math.max(0, loan.principal - totalReturned)
     }
 
     const contractData = formatContractData(loan, outstandingBalance)

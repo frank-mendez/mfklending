@@ -80,13 +80,17 @@ async function handleDocumentCompleted(
   supabase: ReturnType<typeof createServiceRoleClient>
 ) {
   // Update contract status immediately
-  await supabase
+  const { error: statusError } = await supabase
     .from('loans')
     .update({
       contract_status: 'signed',
       contract_signed_at: document.completed_at,
     })
     .eq('id', loanId)
+
+  if (statusError) {
+    throw new Error(`Failed to update loan status to signed: ${statusError.message}`)
+  }
 
   // Download signed PDF from SignWell and store it
   const pdfResult = await downloadSignedPDF(document.id)
@@ -118,7 +122,14 @@ async function handleDocumentDeclined(
   loanId: string,
   supabase: ReturnType<typeof createServiceRoleClient>
 ) {
-  await supabase.from('loans').update({ contract_status: 'declined' }).eq('id', loanId)
+  const { error } = await supabase
+    .from('loans')
+    .update({ contract_status: 'declined' })
+    .eq('id', loanId)
+
+  if (error) {
+    throw new Error(`Failed to update loan status to declined: ${error.message}`)
+  }
 
   console.warn('[signwell-webhook] Contract declined for loan:', loanId)
 }
@@ -127,5 +138,12 @@ async function handleDocumentExpired(
   loanId: string,
   supabase: ReturnType<typeof createServiceRoleClient>
 ) {
-  await supabase.from('loans').update({ contract_status: 'expired' }).eq('id', loanId)
+  const { error } = await supabase
+    .from('loans')
+    .update({ contract_status: 'expired' })
+    .eq('id', loanId)
+
+  if (error) {
+    throw new Error(`Failed to update loan status to expired: ${error.message}`)
+  }
 }

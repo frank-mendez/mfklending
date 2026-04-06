@@ -82,7 +82,7 @@ export interface Loan {
   contract_signed_pdf_path: string | null
   imported_at: string | null
   import_source: string | null
-  purpose: string | null
+  purpose?: string | null
   created_at: string
   updated_at: string
   borrower?: Borrower

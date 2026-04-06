@@ -5,6 +5,7 @@ import { PageHeader } from '@/components/shared/PageHeader'
 import { Button } from '@/components/ui/button'
 import { formatContractData } from '@/lib/contracts/generator'
 import { getLoanById } from '@/lib/data/loans.server'
+import { createClient } from '@/lib/supabase/server'
 import { formatPHP } from '@/lib/utils/currency'
 
 interface ContractPageProps {
@@ -17,7 +18,22 @@ export default async function ContractPreviewPage({ params }: ContractPageProps)
 
   if (!loan) notFound()
 
-  const data = formatContractData(loan)
+  // For hybrid_diminishing loans, compute outstanding balance from principal_returns
+  let outstandingBalance: number | undefined
+  if (loan.loan_type === 'hybrid_diminishing') {
+    const supabase = await createClient()
+    const { data: returns } = await supabase
+      .from('principal_returns')
+      .select('amount')
+      .eq('loan_id', id)
+    const totalReturned = (returns ?? []).reduce(
+      (sum: number, r: { amount: number }) => sum + r.amount,
+      0
+    )
+    outstandingBalance = Math.max(0, loan.principal - totalReturned)
+  }
+
+  const data = formatContractData(loan, outstandingBalance)
   const totalInterest = data.monthlyInterestCentavos * data.termMonths
 
   return (
@@ -99,8 +115,9 @@ export default async function ContractPreviewPage({ params }: ContractPageProps)
         <h3 className="font-bold mt-6">3. Loan Terms and Conditions:</h3>
         <div className="text-sm space-y-3">
           <div className="bg-yellow-50 border border-yellow-200 rounded px-3 py-2 font-bold">
-            Monthly Interest: The interest is calculated at a rate of 5% per month, on the
-            outstanding loan balance for a three-month loan term.
+            Monthly Interest: The interest is calculated at a rate of{' '}
+            {(data.interestRate * 100).toFixed(0)}% per month, on the outstanding loan balance for a{' '}
+            {data.termMonths}-month loan term.
           </div>
           <div className="border-2 border-gray-800 rounded p-4 text-center space-y-1">
             <div className="font-bold">Bank: {data.mfkBankName}</div>

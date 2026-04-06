@@ -8,14 +8,18 @@ VALUES (
 )
 ON CONFLICT (id) DO NOTHING;
 
-CREATE POLICY IF NOT EXISTS "Authenticated users can upload contracts"
+DROP POLICY IF EXISTS "Authenticated users can upload contracts" ON storage.objects;
+CREATE POLICY "Authenticated users can upload contracts"
   ON storage.objects FOR INSERT TO authenticated
   WITH CHECK (bucket_id = 'contracts');
 
-CREATE POLICY IF NOT EXISTS "Authenticated users can read contracts"
+DROP POLICY IF EXISTS "Authenticated users can read contracts" ON storage.objects;
+CREATE POLICY "Authenticated users can read contracts"
   ON storage.objects FOR SELECT TO authenticated
   USING (bucket_id = 'contracts');
 
-CREATE POLICY IF NOT EXISTS "Service role manages contracts"
+DROP POLICY IF EXISTS "Service role manages contracts" ON storage.objects;
+CREATE POLICY "Service role manages contracts"
   ON storage.objects FOR ALL TO service_role
-  USING (bucket_id = 'contracts');
+  USING (bucket_id = 'contracts')
+  WITH CHECK (bucket_id = 'contracts');
