@@ -6,6 +6,7 @@ import Link from 'next/link'
 import { useEffect, useRef, useState } from 'react'
 import { EmptyState } from '@/components/shared/EmptyState'
 import { StatusBadge } from '@/components/shared/StatusBadge'
+import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import {
@@ -22,7 +23,30 @@ import { cn } from '@/lib/utils'
 import { formatPHP } from '@/lib/utils/currency'
 import { daysOverdue, formatManila } from '@/lib/utils/date'
 import { useFiltersStore } from '@/stores/filters.store'
-import type { LoanWithBorrower } from '@/types'
+import type { ContractStatus, LoanWithBorrower } from '@/types'
+
+function ContractBadge({ status }: { status: ContractStatus }) {
+  if (status === 'none') return <span className="text-muted-foreground text-sm">—</span>
+  if (status === 'pending_signature')
+    return (
+      <Badge className="bg-yellow-100 text-yellow-800 border-yellow-300 border text-xs">
+        Awaiting Signature
+      </Badge>
+    )
+  if (status === 'signed')
+    return (
+      <Badge className="bg-green-100 text-green-800 border-green-300 border text-xs">Signed</Badge>
+    )
+  if (status === 'declined')
+    return <Badge className="bg-red-100 text-red-800 border-red-300 border text-xs">Declined</Badge>
+  if (status === 'expired')
+    return (
+      <Badge className="bg-orange-100 text-orange-800 border-orange-300 border text-xs">
+        Expired
+      </Badge>
+    )
+  return null
+}
 
 interface LoansClientProps {
   initialData: LoanWithBorrower[]
@@ -171,6 +195,7 @@ export function LoansClient({ initialData }: LoansClientProps) {
                 <TableHead className="text-center">Term</TableHead>
                 <TableHead>Start Date</TableHead>
                 <TableHead>Status</TableHead>
+                <TableHead>Contract</TableHead>
                 <TableHead>Next Due</TableHead>
                 <TableHead className="text-right">Action</TableHead>
               </TableRow>
@@ -202,6 +227,9 @@ export function LoansClient({ initialData }: LoansClientProps) {
                     </TableCell>
                     <TableCell>
                       <StatusBadge status={loan.status} />
+                    </TableCell>
+                    <TableCell>
+                      <ContractBadge status={loan.contract_status} />
                     </TableCell>
                     <TableCell className="text-sm">
                       {loan.status === 'overdue' ? (
