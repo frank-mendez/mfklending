@@ -32,7 +32,8 @@
       "!**/dist",
       "!**/build",
       "!**/.claude",
-      "!**/*.css"
+      "!**/*.css",
+      "!**/coverage"
     ]
   }
 }
