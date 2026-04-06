@@ -4,6 +4,8 @@ export type LoanType = 'flat_interest' | 'diminishing' | 'hybrid_diminishing'
 
 export type LoanStatus = 'active' | 'paid' | 'defaulted' | 'overdue'
 
+export type ContractStatus = 'none' | 'pending_signature' | 'signed' | 'declined' | 'expired'
+
 export type ScheduleStatus = 'pending' | 'paid' | 'late'
 
 export type PaymentType = 'interest' | 'principal' | 'penalty' | 'full'
@@ -74,6 +76,10 @@ export interface Loan {
   signwell_document_id: string | null
   contract_url: string | null
   reminders_enabled: boolean
+  contract_status: ContractStatus
+  contract_sent_at: string | null
+  contract_signed_at: string | null
+  contract_signed_pdf_path: string | null
   imported_at: string | null
   import_source: string | null
   created_at: string
@@ -246,4 +252,52 @@ export interface PartnerEscalation {
     daysLate: number
     penalty: number
   }>
+}
+
+// ─── Contract Generation ──────────────────────────────────────────────────────
+
+export interface ContractData {
+  // Borrower fields
+  borrowerFullName: string
+  borrowerAge: number
+  borrowerOccupation: string
+  borrowerPhone: string
+  borrowerEmail: string
+  borrowerBank: string
+  borrowerAccountName: string
+  borrowerAccountNumber: string
+
+  // Loan fields
+  loanPurpose: string | null
+  /** Principal in centavos */
+  principalCentavos: number
+  /** Interest rate as decimal e.g. 0.05 */
+  interestRate: number
+  termMonths: number
+  /** Monthly interest in centavos */
+  monthlyInterestCentavos: number
+  /** Total repayment in centavos (principal + all interest) */
+  totalRepaymentCentavos: number
+
+  // MFK static fields
+  mfkBankName: string // 'GoTyme Bank'
+  mfkAccountName: string // 'MFK Lending Corp'
+  mfkAccountNumber: string // '014721202843'
+
+  // Document metadata
+  documentDate: string // formatted: 'March 25, 2026'
+  loanId: string
+}
+
+export interface SignWellWebhookPayload {
+  event: 'document_completed' | 'document_declined' | 'document_expired'
+  document: {
+    id: string
+    status: string
+    completed_at: string | null
+    declined_at: string | null
+    files: Array<{
+      url: string
+    }>
+  }
 }
