@@ -118,3 +118,33 @@
     @apply bg-background text-foreground;
   }
 }
+
+@media print {
+  /* Hide navigation and sidebar when printing reports */
+  aside,
+  nav,
+  header,
+  [data-sidebar],
+  .print\:hidden {
+    display: none !important;
+  }
+
+  /* Ensure full-width content */
+  main {
+    padding: 0 !important;
+    margin: 0 !important;
+    width: 100% !important;
+  }
+
+  /* Prevent page breaks inside cards and table rows */
+  .card,
+  tr {
+    break-inside: avoid;
+  }
+
+  /* Use black text for printing */
+  * {
+    color: black !important;
+    background: white !important;
+  }
+}
