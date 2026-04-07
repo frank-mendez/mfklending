@@ -1,4 +1,4 @@
-import type { LoanStatus, LoanType } from '@/types'
+import type { InterestEarnedParams, LoanBookFilters, LoanStatus, LoanType } from '@/types'
 
 export interface LoanFilters {
   loanStatus?: LoanStatus | 'all'
@@ -36,5 +36,15 @@ export const queryKeys = {
   notifications: {
     all: ['notifications'] as const,
     recent: () => [...queryKeys.notifications.all, 'recent'] as const,
+  },
+  reports: {
+    all: ['reports'] as const,
+    fundHealth: () => [...queryKeys.reports.all, 'fund-health'] as const,
+    interestEarned: (params: InterestEarnedParams) =>
+      [...queryKeys.reports.all, 'interest-earned', params] as const,
+    loanBook: (filters: LoanBookFilters) =>
+      [...queryKeys.reports.all, 'loan-book', filters] as const,
+    partnerEquity: () => [...queryKeys.reports.all, 'partner-equity'] as const,
+    dividends: () => [...queryKeys.reports.all, 'dividends'] as const,
   },
 } as const

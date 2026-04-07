@@ -290,6 +290,73 @@ export interface ContractData {
   loanId: string
 }
 
+// ─── Reports ──────────────────────────────────────────────────────────────────
+
+export interface InterestEarnedParams {
+  year: number
+  groupBy: 'month' | 'quarter' | 'year'
+}
+
+export interface LoanBookFilters {
+  status: 'all' | 'active' | 'paid' | 'overdue' | 'defaulted'
+  loanType: 'all' | 'flat_interest' | 'diminishing' | 'hybrid_diminishing'
+  year: number | 'all'
+}
+
+export interface InterestEarnedRow {
+  period: string
+  interestCollected: number
+  penaltiesCollected: number
+  totalCollected: number
+  loanCount: number
+}
+
+export interface LoanBookRow {
+  loanId: string
+  borrowerName: string
+  loanType: LoanType
+  principal: number
+  outstandingBalance: number
+  totalInterestPaid: number
+  totalPenaltiesPaid: number
+  status: LoanStatus
+  contractStatus: ContractStatus
+  startDate: string
+  endDate: string | null
+  remindersEnabled: boolean
+}
+
+export interface PartnerEquityRow {
+  partnerId: string
+  partnerName: string
+  totalContributed: number
+  totalDividendsReceived: number
+  netEquity: number
+  contributionMonths: number
+  lastContribution: string | null
+}
+
+export interface DividendRow {
+  distributedAt: string
+  perPartner: number
+  totalDistributed: number
+  remarks: string | null
+}
+
+export interface FundHealthSummary {
+  totalStash: number
+  totalPrincipalLoaned: number
+  totalOutstandingBalance: number
+  totalInterestCollected: number
+  totalPenaltiesCollected: number
+  totalDividendsPaid: number
+  currentBalance: number
+  activeLoans: number
+  overdueLoans: number
+  paidLoans: number
+  roi: number
+}
+
 export interface SignWellWebhookPayload {
   event: 'document_completed' | 'document_declined' | 'document_expired'
   document: {
